@@ -123,3 +123,61 @@ class ParsedCV(BaseModel):
             for bullet in item.bullets:
                 index[bullet.id] = bullet
         return index
+
+    def evidence_index(self) -> dict[str, str]:
+        """Every citable CV item, by ID -> its text.
+
+        Roles, projects and bullets carry stored IDs. Summary, education, skills,
+        certifications and languages get positional IDs (edu-1, skill-3, ...), which are
+        stable because a stored ParsedCV never changes.
+        """
+        index: dict[str, str] = {}
+        if self.summary:
+            index["summary"] = self.summary
+        for exp in self.experience:
+            dates = " - ".join(d for d in (exp.start_date, exp.end_date) if d)
+            index[exp.id] = f"{exp.title} at {exp.company}" + (f" ({dates})" if dates else "")
+            for b in exp.bullets:
+                index[b.id] = b.text
+        for proj in self.projects:
+            index[proj.id] = proj.name + (f": {proj.description}" if proj.description else "")
+            for b in proj.bullets:
+                index[b.id] = b.text
+        for i, edu in enumerate(self.education, 1):
+            parts = [edu.degree, edu.field_of_study, edu.institution, edu.end_date]
+            index[f"edu-{i}"] = ", ".join(p for p in parts if p)
+        for prefix, values in (
+            ("skill", self.skills),
+            ("cert", self.certifications),
+            ("lang", self.languages),
+        ):
+            for i, value in enumerate(values, 1):
+                index[f"{prefix}-{i}"] = value
+        return index
+
+    def render_with_ids(self) -> str:
+        """The CV as prompt text, each citable item prefixed by its [ID]."""
+        index = self.evidence_index()
+        lines = [f"Candidate: {self.contact.name}"]
+        if "summary" in index:
+            lines += ["", "SUMMARY", f"[summary] {index['summary']}"]
+        if self.experience:
+            lines += ["", "EXPERIENCE"]
+            for exp in self.experience:
+                lines.append(f"[{exp.id}] {index[exp.id]}")
+                lines += [f"  [{b.id}] {b.text}" for b in exp.bullets]
+        if self.projects:
+            lines += ["", "PROJECTS"]
+            for proj in self.projects:
+                lines.append(f"[{proj.id}] {index[proj.id]}")
+                lines += [f"  [{b.id}] {b.text}" for b in proj.bullets]
+        for title, prefix in (
+            ("EDUCATION", "edu"),
+            ("SKILLS", "skill"),
+            ("CERTIFICATIONS", "cert"),
+            ("LANGUAGES", "lang"),
+        ):
+            items = [(k, v) for k, v in index.items() if k.startswith(f"{prefix}-")]
+            if items:
+                lines += ["", title, *(f"[{k}] {v}" for k, v in items)]
+        return "\n".join(lines)

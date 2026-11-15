@@ -24,11 +24,19 @@ def test_upgrade_and_downgrade_sqlite(tmp_path: Path) -> None:
     engine = sa.create_engine(f"sqlite:///{db.as_posix()}")
     cols = {c["name"] for c in sa.inspect(engine).get_columns("cvs")}
     assert cols == {"id", "filename", "content_type", "raw_text", "parsed", "created_at"}
+    job_cols = {c["name"] for c in sa.inspect(engine).get_columns("jobs")}
+    assert job_cols == {"id", "raw_text", "parsed", "created_at"}
+    engine.dispose()
+
+    command.downgrade(cfg, "0001")
+    engine = sa.create_engine(f"sqlite:///{db.as_posix()}")
+    assert {"cvs"} <= set(sa.inspect(engine).get_table_names())
+    assert "jobs" not in sa.inspect(engine).get_table_names()
     engine.dispose()
 
     command.downgrade(cfg, "base")
     engine = sa.create_engine(f"sqlite:///{db.as_posix()}")
-    assert "cvs" not in sa.inspect(engine).get_table_names()
+    assert not {"cvs", "jobs"} & set(sa.inspect(engine).get_table_names())
     engine.dispose()
 
 
@@ -38,7 +46,8 @@ def test_postgres_offline_sql_uses_jsonb_and_timestamptz() -> None:
     command.upgrade(cfg, "head", sql=True)
     sql = buf.getvalue()
     assert "CREATE TABLE cvs" in sql
-    assert "parsed JSONB NOT NULL" in sql
+    assert "CREATE TABLE jobs" in sql
+    assert sql.count("parsed JSONB NOT NULL") == 2
     assert "created_at TIMESTAMP WITH TIME ZONE NOT NULL" in sql
     assert "id UUID NOT NULL" in sql
 

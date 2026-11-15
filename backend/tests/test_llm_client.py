@@ -15,7 +15,7 @@ from app.core.llm import (
     LLMTruncatedError,
     LLMUnavailableError,
 )
-from tests.fakes import sample_extraction
+from tests.fakes import sample_extraction, sample_fit_assessment, sample_job_extraction
 
 
 class FakeBetaMessages:
@@ -60,6 +60,12 @@ async def test_returns_parsed_output_and_sends_expected_request() -> None:
     assert kw["output_config"] == {"effort": "high"}
     assert kw["betas"] == [FALLBACK_BETA]
     assert kw["fallbacks"] == "default"
+
+
+async def test_per_call_effort_overrides_default() -> None:
+    client, messages = make_client(response(parsed=sample_extraction()), anthropic_effort="low")
+    await client.structured(system="s", user="u", output_model=CVExtraction, effort="xhigh")
+    assert messages.kwargs["output_config"] == {"effort": "xhigh"}
 
 
 async def test_fallback_can_be_disabled() -> None:
@@ -126,6 +132,48 @@ async def test_real_sdk_request_and_parse_via_mock_transport() -> None:
     assert body["output_config"]["format"]["type"] == "json_schema"
     assert "contact" in body["output_config"]["format"]["schema"]["properties"]
     assert FALLBACK_BETA in captured["beta"]
+
+
+@pytest.mark.parametrize(
+    "instance",
+    [sample_extraction(), sample_job_extraction(), sample_fit_assessment()],
+    ids=lambda m: type(m).__name__,
+)
+async def test_every_agent_output_model_round_trips_through_real_sdk(instance: Any) -> None:
+    """Each output model converts to a JSON schema the SDK accepts and parses back."""
+    import json
+
+    import httpx2
+    from anthropic import AsyncAnthropic
+
+    sent: dict[str, Any] = {}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        sent.update(json.loads(request.content))
+        return httpx2.Response(
+            200,
+            json={
+                "id": "msg_test",
+                "type": "message",
+                "role": "assistant",
+                "model": "test-model",
+                "content": [{"type": "text", "text": instance.model_dump_json()}],
+                "stop_reason": "end_turn",
+                "stop_sequence": None,
+                "usage": {"input_tokens": 1, "output_tokens": 2},
+            },
+        )
+
+    sdk = AsyncAnthropic(
+        api_key="k", http_client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
+    )
+    client = AnthropicLLMClient(Settings(_env_file=None), client=sdk)
+    result = await client.structured(system="s", user="u", output_model=type(instance))
+
+    assert result == instance
+    schema = sent["output_config"]["format"]["schema"]
+    assert schema["type"] == "object"
+    assert schema.get("additionalProperties") is False
 
 
 @pytest.mark.parametrize(

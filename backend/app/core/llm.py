@@ -11,7 +11,7 @@ import anthropic
 from anthropic import AsyncAnthropic
 from pydantic import BaseModel, ValidationError
 
-from app.core.config import Settings
+from app.core.config import Effort, Settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +36,10 @@ class LLMUnavailableError(LLMError):
 
 class LLMClient(Protocol):
     async def structured[T: BaseModel](
-        self, *, system: str, user: str, output_model: type[T]
-    ) -> T: ...
+        self, *, system: str, user: str, output_model: type[T], effort: Effort | None = None
+    ) -> T:
+        """Return a validated `output_model`. `effort` overrides the configured default."""
+        ...
 
 
 class AnthropicLLMClient:
@@ -51,7 +53,9 @@ class AnthropicLLMClient:
         self._max_tokens = settings.anthropic_max_tokens
         self._fallback = settings.anthropic_refusal_fallback
 
-    async def structured[T: BaseModel](self, *, system: str, user: str, output_model: type[T]) -> T:
+    async def structured[T: BaseModel](
+        self, *, system: str, user: str, output_model: type[T], effort: Effort | None = None
+    ) -> T:
         kwargs: dict = {}
         if self._fallback:
             kwargs = {"betas": [FALLBACK_BETA], "fallbacks": "default"}
@@ -63,7 +67,7 @@ class AnthropicLLMClient:
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 output_format=output_model,
-                output_config={"effort": self._effort},
+                output_config={"effort": effort or self._effort},
                 **kwargs,
             )
         except ValidationError as exc:

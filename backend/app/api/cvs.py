@@ -1,4 +1,3 @@
-import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, UploadFile, status
@@ -6,7 +5,6 @@ from starlette.concurrency import run_in_threadpool
 
 from app.api.deps import LLMDep, SessionDep, SettingsDep
 from app.api.schemas import CVRead
-from app.core.llm import LLMError, LLMUnavailableError
 from app.services import cv_repository
 from app.services.cv_parser import parse_cv
 from app.services.text_extraction import (
@@ -17,7 +15,6 @@ from app.services.text_extraction import (
     extract_text,
 )
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/cvs", tags=["cvs"])
 
 
@@ -43,15 +40,7 @@ async def upload_cv(
     except (EmptyDocumentError, CorruptDocumentError) as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
 
-    try:
-        parsed = await parse_cv(text, llm)
-    except LLMUnavailableError as exc:
-        logger.error("LLM unavailable: %s", exc)
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
-    except LLMError as exc:
-        logger.warning("cv parsing failed: %s", exc)
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"CV parsing failed: {exc}") from exc
-
+    parsed = await parse_cv(text, llm)  # LLM errors -> 502/503 via app/api/errors.py
     cv = await cv_repository.create_cv(
         session, filename=filename, content_type=kind, raw_text=text, parsed=parsed
     )

@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.agents.schemas.cv import ParsedCV
+from app.agents.schemas.fit import FitReport
+from app.agents.schemas.job import JobPosting
 
 
 class CVRead(BaseModel):
@@ -14,3 +16,27 @@ class CVRead(BaseModel):
     content_type: str
     created_at: datetime
     parsed: ParsedCV
+
+
+class JobCreate(BaseModel):
+    # Upper bound is enforced against settings in the route.
+    text: str = Field(min_length=50, description="The job posting, pasted as plain text.")
+
+
+class JobRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    created_at: datetime
+    parsed: JobPosting
+
+
+class FitRequest(BaseModel):
+    cv_id: uuid.UUID
+    job_id: uuid.UUID
+
+
+class FitResponse(BaseModel):
+    cv_id: uuid.UUID
+    job_id: uuid.UUID
+    report: FitReport

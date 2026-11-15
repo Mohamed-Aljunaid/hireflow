@@ -41,3 +41,36 @@ Each entry: date, decision, context, alternatives, consequences.
 ## 2026-11-15 — Tooling: uv, everything on E:
 - **Decision:** `backend/` is a uv project (`package = false`, Python pinned to 3.12). `UV_CACHE_DIR` and `UV_PYTHON_INSTALL_DIR` point at `E:\ai-agent-portfolio\`, and pytest's `--basetemp=.pytest-tmp` keeps tmp dirs off C:. ruff selects E, F, W, I, B, UP, ASYNC, SIM, RUF. `alembic` is declared third-party for isort because the local `alembic/` migrations directory shadows it.
 - **Consequences:** Docker Desktop stores images on C: by default. When it is installed, move its disk image location to E: (Settings → Resources → Advanced).
+
+---
+
+## 2026-11-15 — Phase 2: the fit score is computed in code, not by the LLM
+- **Decision:** The Fit Analyst LLM returns one verdict per requirement (`met` / `partial` / `not_met`) with cited CV IDs. `build_fit_report()` computes the score: met = 1, partial = 0.5, not_met = 0, with must-haves weighted 2× and nice-to-haves 1×. `must_have_score` and `nice_to_have_score` are reported separately. All scores are `None` when the job lists no requirements.
+- **Context:** A model-chosen number (for example "78") is not reproducible, can't be explained and drifts between runs. Verdicts can each be checked against evidence.
+- **Alternatives:** an LLM-chosen 0–100 score; embedding similarity (unexplainable).
+- **Consequences:** The score is transparent, and tests pin it down. The weights live in `app/agents/fit_analyst.py` and can be tuned in Phase 7 evals.
+
+## 2026-11-15 — Evidence is enforced in code
+- **Decision:** Every citable CV item has an ID. Roles, projects and bullets carry stored IDs (`exp-1`, `exp-1.b2`, `proj-1.b1`). Summary, education, skills, certifications and languages get positional IDs (`summary`, `edu-1`, `skill-3`, `cert-1`, `lang-2`) via `ParsedCV.evidence_index()`. The LLM sees the CV rendered with IDs. After the call, code:
+  - drops cited IDs that don't exist;
+  - downgrades `met` or `partial` to `not_met` when no valid evidence remains;
+  - ignores unknown or duplicate requirement IDs, and fills unassessed requirements as `not_met`;
+  - drops strengths with no valid evidence.
+
+  Every correction is recorded in `FitReport.warnings`.
+- **Context:** PLAN requires "every match references real CV items". The Phase 5 claim checker depends on the same IDs.
+- **Alternatives:** retrying the LLM on invalid output (costs more and still isn't guaranteed); trusting the model.
+- **Consequences:** Model mistakes make the report more conservative, never more flattering, and the warnings stay visible for evals. Positional IDs are safe only because a stored ParsedCV is immutable; any future CV editing must keep the list order or re-version the CV.
+
+## 2026-11-15 — Job postings use the same extraction → IDs pattern
+- **Decision:** `JobPostingExtraction` is the LLM output. `JobPosting` adds requirement IDs `must-N` and `nice-N`. Seniority, remote policy and requirement categories are `Literal` enums, so the structured-output schema constrains them. The posting must be 50–50,000 characters; oversized input gets a 413, and nothing is truncated.
+- **Consequences:** Requirement IDs are stable per stored job and are what fit matches and gaps reference.
+
+## 2026-11-15 — Per-call effort; LLM errors via app-wide exception handlers
+- **Decision:** `LLMClient.structured(..., effort=None)` overrides the default effort for a single call. Fit analysis runs at `ANTHROPIC_ANALYSIS_EFFORT` (default `high`); extraction stays at `ANTHROPIC_EFFORT` (`medium`). `LLMUnavailableError` → 503 and `LLMError` → 502 are now registered once in `app/api/errors.py` instead of in each route.
+- **Consequences:** Routes stay thin, and new LLM endpoints get correct error codes automatically.
+
+## 2026-11-15 — `/fit` is not persisted in Phase 2
+- **Decision:** `POST /fit {cv_id, job_id}` computes and returns a report without storing it.
+- **Context:** In Phase 3 the fit report becomes part of the LangGraph state for an application, which is checkpointed in Postgres. A separate `fit_reports` table now would be thrown away then.
+- **Consequences:** Every call to `/fit` runs the LLM again.

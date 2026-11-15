@@ -6,12 +6,31 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.agents.schemas.cv import CVExtraction
+from app.agents.schemas.fit import FitAssessment
+from app.agents.schemas.job import JobPostingExtraction
 from app.api.deps import get_llm_client
 from app.core.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import get_session
 from app.main import create_app
-from tests.fakes import FakeLLMClient, sample_extraction
+from tests.fakes import (
+    FakeLLMClient,
+    sample_extraction,
+    sample_fit_assessment,
+    sample_job_extraction,
+)
+
+SAMPLE_JOB_TEXT = """Senior Python Engineer - Northwind Labs (Remote, US)
+
+We're hiring a senior engineer to own our backend services.
+
+Requirements:
+- 5+ years of Python backend experience
+- FastAPI or similar async framework
+- Kubernetes in production
+
+Nice to have: open-source contributions.
+"""
 
 SAMPLE_CV_TEXT = """Jordan Rivera
 jordan.rivera@example.com | +1 555 0100 | Austin, TX
@@ -44,7 +63,13 @@ async def session(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIte
 
 @pytest.fixture
 def fake_llm() -> FakeLLMClient:
-    return FakeLLMClient(responses={CVExtraction: sample_extraction()})
+    return FakeLLMClient(
+        responses={
+            CVExtraction: sample_extraction(),
+            JobPostingExtraction: sample_job_extraction(),
+            FitAssessment: sample_fit_assessment(),
+        }
+    )
 
 
 @pytest.fixture
