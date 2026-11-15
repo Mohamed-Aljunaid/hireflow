@@ -102,3 +102,36 @@ Each entry: date, decision, context, alternatives, consequences.
 ## 2026-11-15 — Checkpointer: AsyncPostgresSaver on a psycopg pool; in-memory fallback
 - **Decision:** `open_checkpointer()` turns `DATABASE_URL` into a libpq URL and opens an `AsyncConnectionPool` with the settings the saver requires (`autocommit`, `prepare_threshold=0`, `dict_row`). It then calls `saver.setup()` on each start; setup is idempotent and owns the checkpoint tables (Alembic does not). Non-Postgres URLs get an `InMemorySaver` with a loud warning, which is for local smoke runs only.
 - **Consequences:** There are two Postgres drivers: asyncpg (SQLAlchemy) and psycopg (LangGraph). On **Windows**, psycopg's async mode needs the selector event loop. Tests set it in `conftest.py`. uvicorn's `--loop` option (`auto|asyncio|uvloop`) cannot select it, so running the API natively on Windows against Postgres is unsupported; run it in Docker (Linux) as intended. Native Windows runs with a SQLite URL still work, using the in-memory checkpointer.
+
+---
+
+## 2026-11-15 — Phase 4: approval gates are LangGraph `interrupt()` nodes
+- **Decision:** A gate is a node that calls `interrupt({"gate", "allowed_actions", "payload"})`. `POST /applications/{id}/resume` sends a `ReviewDecision` (`approve` | `edit` | `reject`, optional `feedback`), which the graph receives through `Command(resume=...)`. Every decision is appended to `state.reviews` (a list reducer). A rejection also sets `state.rejection`, and a conditional edge routes it to END.
+- **Scope:** PLAN lists gates after fit analysis and after tailoring and the cover letter. The last two nodes arrive in Phase 5, so Phase 4 ships the mechanism plus the **fit_review** gate. Phase 5 adds its gates (and a `regenerate` action) by extending `GATE_ACTIONS`.
+- **Consequences:** Code in a gate before `interrupt()` re-runs on resume, so it must stay side-effect free.
+
+## 2026-11-15 — "Edit" at the fit gate = verdict overrides with real evidence
+- **Decision:** An edit is a list of `MatchOverride {requirement_id, verdict, evidence_refs, note}`. `apply_fit_overrides()` applies the Phase 2 evidence rule to humans as well: refs must be real CV IDs, and `met`/`partial` needs at least one. Overridden matches are marked `source: "human"`, their rationale becomes `[Reviewer] <note>`, and the scores are recomputed.
+- **Context:** A reviewer often spots evidence the analyst missed, or disagrees on a judgement call. Letting them write in experience the CV lacks would undo the no-fabrication rule for every later step.
+- **Alternatives:** free-form editing of the report (unverifiable); re-running the analyst with feedback (that's `regenerate`, planned for Phase 5).
+- **Consequences:** To claim experience that isn't on the CV, the user must add it to the CV first, which is the honest workflow.
+
+## 2026-11-15 — Resume is validated up front and claimed atomically
+- **Decision:** `PipelineRunner.resume()` checks the request before touching the run:
+  1. a gate must be pending in the checkpoint (otherwise **409**);
+  2. the action must be allowed at that gate, and an edit must pass a dry-run of `apply_fit_overrides` (otherwise **422**);
+  3. it then flips the status with a compare-and-set `UPDATE … WHERE status='awaiting_approval'`. Of two concurrent resumes exactly one wins, and the other gets 409.
+
+  Only then does it spawn `Command(resume=…)`.
+- **Context:** Invalid input reaching the node would raise inside the graph and mark the run `failed`, losing a run that was only waiting for a correct answer.
+- **Consequences:** A bad edit leaves the run paused and answerable.
+
+## 2026-11-15 — Status is derived from the checkpoint after every run
+- **Decision:** `status_from_snapshot()` gives:
+  - a pending gate interrupt → `awaiting_approval`;
+  - pending nodes but no gate → `running` (interrupted mid-run);
+  - `rejection` in state → `rejected`;
+  - otherwise → `completed`.
+
+  The runner applies it whenever `ainvoke` returns. Startup recovery uses it too, so a row stuck at `running` while its checkpoint is paused, for example after a crash between the status flip and the resume, is repaired to `awaiting_approval` without running anything.
+- **Consequences:** The row and the checkpoint can't drift apart permanently. `pending_review` is shown only while the row says `awaiting_approval`, because the old interrupt stays in the checkpoint until the gate node finishes.

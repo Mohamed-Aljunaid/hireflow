@@ -6,7 +6,8 @@ serializer's class allowlist, survives model refactors, and is readable in Postg
 Nodes validate their inputs with the Pydantic models at the boundary.
 """
 
-from typing import Any, TypedDict
+import operator
+from typing import Annotated, Any, TypedDict
 
 
 class PipelineState(TypedDict, total=False):
@@ -15,3 +16,7 @@ class PipelineState(TypedDict, total=False):
     job_text: str
     job: dict[str, Any]  # JobPosting
     fit_report: dict[str, Any]  # FitReport
+    # Human-in-the-loop: every decision, appended (ReviewRecord dicts).
+    reviews: Annotated[list[dict[str, Any]], operator.add]
+    # Set when a reviewer rejects; the graph routes to END.
+    rejection: dict[str, Any]  # ReviewRecord

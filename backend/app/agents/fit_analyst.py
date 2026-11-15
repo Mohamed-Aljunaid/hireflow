@@ -42,7 +42,7 @@ def _dedupe(items: list[str]) -> list[str]:
     return list(dict.fromkeys(items))
 
 
-def _score(matches: list[RequirementMatch], importance: str | None = None) -> int | None:
+def score_matches(matches: list[RequirementMatch], importance: str | None = None) -> int | None:
     selected = [m for m in matches if importance is None or m.importance == importance]
     if not selected:
         return None
@@ -118,9 +118,9 @@ def build_fit_report(assessment: FitAssessment, *, job: JobPosting, cv: ParsedCV
     ]
 
     return FitReport(
-        overall_score=_score(matches),
-        must_have_score=_score(matches, "must"),
-        nice_to_have_score=_score(matches, "nice"),
+        overall_score=score_matches(matches),
+        must_have_score=score_matches(matches, "must"),
+        nice_to_have_score=score_matches(matches, "nice"),
         matches=matches,
         strengths=strengths,
         gaps=gaps,

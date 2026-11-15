@@ -31,9 +31,13 @@ async def test_create_runs_pipeline_in_background(
     await runner.wait(uuid.UUID(created["id"]))
     done = (await client.get(f"/applications/{created['id']}")).json()
 
-    assert done["status"] == "completed"
+    assert done["status"] == "awaiting_approval"
     assert done["error"] is None
-    assert done["next_steps"] == []
+    assert done["next_steps"] == ["fit_review"]
+    assert done["pending_review"]["gate"] == "fit_review"
+    assert done["pending_review"]["allowed_actions"] == ["approve", "edit", "reject"]
+    assert done["pending_review"]["payload"]["fit_report"]["overall_score"] == 71
+    assert done["reviews"] == []
     assert done["job"]["title"] == "Senior Python Engineer"
     assert done["fit_report"]["overall_score"] == 71
     assert [m["requirement_id"] for m in done["fit_report"]["matches"]] == [
@@ -95,3 +99,154 @@ async def test_too_long_job_text_returns_413(client: AsyncClient, test_settings)
 
 async def test_get_unknown_application_returns_404(client: AsyncClient) -> None:
     assert (await client.get(f"/applications/{uuid.uuid4()}")).status_code == 404
+
+
+# ---------- human-in-the-loop: POST /applications/{id}/resume ----------
+
+
+async def paused_application(client: AsyncClient, runner: PipelineRunner) -> str:
+    cv_id = await upload_cv(client)
+    created = (
+        await client.post("/applications", json={"cv_id": cv_id, "job_text": SAMPLE_JOB_TEXT})
+    ).json()
+    await runner.wait(uuid.UUID(created["id"]))
+    return created["id"]
+
+
+async def resume_and_wait(
+    client: AsyncClient, runner: PipelineRunner, app_id: str, decision: dict
+) -> tuple[dict, dict]:
+    resp = await client.post(f"/applications/{app_id}/resume", json=decision)
+    assert resp.status_code == 202, resp.text
+    await runner.wait(uuid.UUID(app_id))
+    return resp.json(), (await client.get(f"/applications/{app_id}")).json()
+
+
+async def test_resume_approve(client: AsyncClient, runner: PipelineRunner) -> None:
+    app_id = await paused_application(client, runner)
+
+    accepted, final = await resume_and_wait(
+        client, runner, app_id, {"action": "approve", "feedback": "Proceed"}
+    )
+
+    assert accepted["status"] == "running"
+    assert accepted["pending_review"] is None
+    assert final["status"] == "completed"
+    assert final["pending_review"] is None
+    assert final["next_steps"] == []
+    [review] = final["reviews"]
+    assert (review["gate"], review["action"], review["feedback"]) == (
+        "fit_review",
+        "approve",
+        "Proceed",
+    )
+
+
+async def test_resume_edit(client: AsyncClient, runner: PipelineRunner) -> None:
+    app_id = await paused_application(client, runner)
+    decision = {
+        "action": "edit",
+        "match_overrides": [
+            {
+                "requirement_id": "must-3",
+                "verdict": "met",
+                "evidence_refs": ["skill-5"],
+                "note": "Reviewer judges the listed Docker experience sufficient here.",
+            }
+        ],
+    }
+
+    _, final = await resume_and_wait(client, runner, app_id, decision)
+
+    assert final["status"] == "completed"
+    k8s = final["fit_report"]["matches"][2]
+    assert (k8s["verdict"], k8s["source"], k8s["evidence_refs"]) == ("met", "human", ["skill-5"])
+    assert final["fit_report"]["overall_score"] == 100
+    assert final["reviews"][0]["overridden_requirements"] == ["must-3"]
+
+
+async def test_resume_reject(client: AsyncClient, runner: PipelineRunner) -> None:
+    app_id = await paused_application(client, runner)
+
+    _, final = await resume_and_wait(
+        client, runner, app_id, {"action": "reject", "feedback": "Skip this one"}
+    )
+
+    assert final["status"] == "rejected"
+    assert final["next_steps"] == []
+    assert final["reviews"][0]["action"] == "reject"
+
+
+@pytest.mark.parametrize(
+    ("decision", "detail"),
+    [
+        (
+            {
+                "action": "edit",
+                "match_overrides": [
+                    {"requirement_id": "must-3", "verdict": "met", "evidence_refs": ["invented"],
+                     "note": "n"}
+                ],
+            },
+            "invented",
+        ),
+        (
+            {
+                "action": "edit",
+                "match_overrides": [
+                    {"requirement_id": "must-3", "verdict": "met", "evidence_refs": [], "note": "n"}
+                ],
+            },
+            "needs at least one CV reference",
+        ),
+    ],
+)  # fmt: skip
+async def test_resume_invalid_edit_returns_422_and_stays_paused(
+    client: AsyncClient, runner: PipelineRunner, decision: dict, detail: str
+) -> None:
+    app_id = await paused_application(client, runner)
+
+    resp = await client.post(f"/applications/{app_id}/resume", json=decision)
+
+    assert resp.status_code == 422
+    assert detail in resp.json()["detail"]
+    body = (await client.get(f"/applications/{app_id}")).json()
+    assert body["status"] == "awaiting_approval"
+    assert body["pending_review"] is not None
+
+
+@pytest.mark.parametrize(
+    "decision",
+    [{"action": "maybe"}, {"action": "edit"}, {"action": "approve", "match_overrides": [{}]}, {}],
+)
+async def test_resume_malformed_decision_returns_422(
+    client: AsyncClient, runner: PipelineRunner, decision: dict
+) -> None:
+    app_id = await paused_application(client, runner)
+    resp = await client.post(f"/applications/{app_id}/resume", json=decision)
+    assert resp.status_code == 422
+
+
+async def test_resume_twice_returns_409(client: AsyncClient, runner: PipelineRunner) -> None:
+    app_id = await paused_application(client, runner)
+    await resume_and_wait(client, runner, app_id, {"action": "approve"})
+
+    resp = await client.post(f"/applications/{app_id}/resume", json={"action": "approve"})
+
+    assert resp.status_code == 409
+
+
+async def test_resume_failed_application_returns_409(
+    client: AsyncClient, runner: PipelineRunner, fake_llm: FakeLLMClient
+) -> None:
+    fake_llm.responses[FitAssessment] = LLMUnavailableError("down")
+    app_id = await paused_application(client, runner)  # actually fails before the gate
+
+    resp = await client.post(f"/applications/{app_id}/resume", json={"action": "approve"})
+
+    assert resp.status_code == 409
+
+
+async def test_resume_unknown_application_returns_404(client: AsyncClient) -> None:
+    resp = await client.post(f"/applications/{uuid.uuid4()}/resume", json={"action": "approve"})
+    assert resp.status_code == 404

@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.agents.schemas.cv import ParsedCV
 from app.agents.schemas.fit import FitReport
 from app.agents.schemas.job import JobPosting
+from app.agents.schemas.review import PendingReview, ReviewRecord
 
 
 class CVRead(BaseModel):
@@ -44,6 +45,10 @@ class ApplicationRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     next_steps: list[str] = Field(description="Graph nodes still to run (empty when done).")
+    pending_review: PendingReview | None = Field(
+        None, description="Set while status is awaiting_approval: what to review, and how."
+    )
+    reviews: list[ReviewRecord] = Field(default_factory=list)
     job: JobPosting | None = None
     fit_report: FitReport | None = None
 

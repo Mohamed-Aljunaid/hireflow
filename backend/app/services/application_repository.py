@@ -1,13 +1,13 @@
 import uuid
+from datetime import UTC, datetime
 from typing import Literal
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Application
 
-# Phase 4 adds "awaiting_approval" and "rejected".
-ApplicationStatus = Literal["running", "completed", "failed"]
+ApplicationStatus = Literal["running", "awaiting_approval", "completed", "rejected", "failed"]
 
 
 async def create_application(
@@ -37,6 +37,22 @@ async def set_status(
     application.status = status
     application.error = error
     await session.commit()
+
+
+async def transition(
+    session: AsyncSession,
+    app_id: uuid.UUID,
+    from_status: ApplicationStatus,
+    to_status: ApplicationStatus,
+) -> bool:
+    """Compare-and-set the status in one UPDATE. True if this call made the change."""
+    result = await session.execute(
+        update(Application)
+        .where(Application.id == app_id, Application.status == from_status)
+        .values(status=to_status, error=None, updated_at=datetime.now(UTC))
+    )
+    await session.commit()
+    return result.rowcount == 1
 
 
 async def list_ids_with_status(session: AsyncSession, status: ApplicationStatus) -> list[uuid.UUID]:

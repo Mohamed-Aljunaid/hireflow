@@ -52,6 +52,9 @@ class RequirementMatch(BaseModel):
     verdict: Verdict
     evidence_refs: list[str]
     rationale: str
+    source: Literal["analyst", "human"] = Field(
+        "analyst", description="'human' when the verdict was overridden at review."
+    )
 
 
 class FitReport(BaseModel):
