@@ -29,9 +29,13 @@ async def dispose_engine() -> None:
     _sessionmaker = None
 
 
-async def get_session() -> AsyncIterator[AsyncSession]:
-    """FastAPI dependency: one session per request."""
+def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
     get_engine()
     assert _sessionmaker is not None
-    async with _sessionmaker() as session:
+    return _sessionmaker
+
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    """FastAPI dependency: one session per request."""
+    async with get_sessionmaker()() as session:
         yield session

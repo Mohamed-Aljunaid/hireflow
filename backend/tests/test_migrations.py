@@ -26,17 +26,23 @@ def test_upgrade_and_downgrade_sqlite(tmp_path: Path) -> None:
     assert cols == {"id", "filename", "content_type", "raw_text", "parsed", "created_at"}
     job_cols = {c["name"] for c in sa.inspect(engine).get_columns("jobs")}
     assert job_cols == {"id", "raw_text", "parsed", "created_at"}
+    app_cols = {c["name"] for c in sa.inspect(engine).get_columns("applications")}
+    assert app_cols == {
+        "id", "cv_id", "job_text", "status", "error", "created_at", "updated_at"
+    }  # fmt: skip
+    [fk] = sa.inspect(engine).get_foreign_keys("applications")
+    assert fk["referred_table"] == "cvs" and fk["constrained_columns"] == ["cv_id"]
     engine.dispose()
 
     command.downgrade(cfg, "0001")
     engine = sa.create_engine(f"sqlite:///{db.as_posix()}")
     assert {"cvs"} <= set(sa.inspect(engine).get_table_names())
-    assert "jobs" not in sa.inspect(engine).get_table_names()
+    assert not {"jobs", "applications"} & set(sa.inspect(engine).get_table_names())
     engine.dispose()
 
     command.downgrade(cfg, "base")
     engine = sa.create_engine(f"sqlite:///{db.as_posix()}")
-    assert not {"cvs", "jobs"} & set(sa.inspect(engine).get_table_names())
+    assert not {"cvs", "jobs", "applications"} & set(sa.inspect(engine).get_table_names())
     engine.dispose()
 
 
@@ -47,6 +53,8 @@ def test_postgres_offline_sql_uses_jsonb_and_timestamptz() -> None:
     sql = buf.getvalue()
     assert "CREATE TABLE cvs" in sql
     assert "CREATE TABLE jobs" in sql
+    assert "CREATE TABLE applications" in sql
+    assert "REFERENCES cvs (id) ON DELETE CASCADE" in sql
     assert sql.count("parsed JSONB NOT NULL") == 2
     assert "created_at TIMESTAMP WITH TIME ZONE NOT NULL" in sql
     assert "id UUID NOT NULL" in sql

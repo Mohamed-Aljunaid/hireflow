@@ -74,3 +74,31 @@ Each entry: date, decision, context, alternatives, consequences.
 - **Decision:** `POST /fit {cv_id, job_id}` computes and returns a report without storing it.
 - **Context:** In Phase 3 the fit report becomes part of the LangGraph state for an application, which is checkpointed in Postgres. A separate `fit_reports` table now would be thrown away then.
 - **Consequences:** Every call to `/fit` runs the LLM again.
+
+---
+
+## 2026-11-15 — Phase 3: graph state holds JSON dicts, not Pydantic instances
+- **Decision:** `PipelineState` is a `TypedDict` whose values are `model_dump(mode="json")` dicts. Nodes validate their inputs with the Pydantic models at the boundary.
+- **Context:** The checkpointer serialises state on every step. LangGraph 4.x restricts which classes it will deserialize, and a pickled-style class reference breaks when a model is renamed or moved.
+- **Alternatives:** Pydantic models in state plus a serializer allowlist (couples checkpoints to class paths).
+- **Consequences:** Checkpoints can be read as plain JSON in Postgres and survive refactors. A test asserts that the state is JSON-serialisable.
+
+## 2026-11-15 — Runs execute in the background; status on the row, state in the checkpointer
+- **Decision:** `POST /applications` stores an `applications` row (`id` = LangGraph `thread_id`, status `running`) and starts the graph as an asyncio task via `PipelineRunner`, returning **202**. `GET /applications/{id}` combines the row (status, error) with `graph.aget_state()` (job, fit report, `next_steps`). Runs use `durability="sync"`, so each step's checkpoint is saved before the next step starts.
+- **Context:** The Phase 6 UI needs a live pipeline view, and Phase 4 interrupts make runs pause, so a synchronous request/response wouldn't fit.
+- **Alternatives:** a synchronous request (times out with several LLM calls, blocks the worker); a task queue such as Celery or arq (an extra service, not needed yet).
+- **Consequences:** Runs live in the API process. A single API replica is assumed until a queue is introduced.
+
+## 2026-11-15 — Crash recovery: resume `running` applications at startup
+- **Decision:** At startup the lifespan calls `PipelineRunner.resume_incomplete()`. For each row still `running`:
+  - if the checkpoint has pending nodes, the run continues with `ainvoke(None, config)`, and finished nodes are **not** re-run;
+  - if there is no checkpoint yet, the run restarts from the stored inputs;
+  - if the run actually finished, only the status is corrected.
+
+  Shutdown cancels in-flight tasks and leaves them `running`, so they resume on the next start. LLM failures set `failed` with the error message; unexpected exceptions set `failed` with `internal error: <Type>`, so internals aren't leaked.
+- **Testing:** The restart guarantee is tested with `AsyncSqliteSaver` on a file: process A is cancelled mid-`fit_analysis`, and process B, with fresh saver, graph and runner on the same file, resumes and calls only the fit LLM. The same scenario against real Postgres (`AsyncPostgresSaver`) is in `test_checkpointer.py` and needs `TEST_DATABASE_URL`.
+- **Consequences:** A step interrupted mid-flight is re-run, so nodes must stay idempotent (they are: pure LLM calls whose results are written to state).
+
+## 2026-11-15 — Checkpointer: AsyncPostgresSaver on a psycopg pool; in-memory fallback
+- **Decision:** `open_checkpointer()` turns `DATABASE_URL` into a libpq URL and opens an `AsyncConnectionPool` with the settings the saver requires (`autocommit`, `prepare_threshold=0`, `dict_row`). It then calls `saver.setup()` on each start; setup is idempotent and owns the checkpoint tables (Alembic does not). Non-Postgres URLs get an `InMemorySaver` with a loud warning, which is for local smoke runs only.
+- **Consequences:** There are two Postgres drivers: asyncpg (SQLAlchemy) and psycopg (LangGraph). On **Windows**, psycopg's async mode needs the selector event loop. Tests set it in `conftest.py`. uvicorn's `--loop` option (`auto|asyncio|uvloop`) cannot select it, so running the API natively on Windows against Postgres is unsupported; run it in Docker (Linux) as intended. Native Windows runs with a SQLite URL still work, using the in-memory checkpointer.

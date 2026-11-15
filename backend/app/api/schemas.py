@@ -31,6 +31,23 @@ class JobRead(BaseModel):
     parsed: JobPosting
 
 
+class ApplicationCreate(BaseModel):
+    cv_id: uuid.UUID
+    job_text: str = Field(min_length=50, description="The job posting, pasted as plain text.")
+
+
+class ApplicationRead(BaseModel):
+    id: uuid.UUID
+    cv_id: uuid.UUID
+    status: str
+    error: str | None
+    created_at: datetime
+    updated_at: datetime
+    next_steps: list[str] = Field(description="Graph nodes still to run (empty when done).")
+    job: JobPosting | None = None
+    fit_report: FitReport | None = None
+
+
 class FitRequest(BaseModel):
     cv_id: uuid.UUID
     job_id: uuid.UUID

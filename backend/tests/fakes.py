@@ -1,5 +1,6 @@
 """Test doubles. No test talks to the real Anthropic API."""
 
+import asyncio
 from dataclasses import dataclass, field
 
 from pydantic import BaseModel
@@ -153,3 +154,52 @@ def sample_fit_assessment() -> FitAssessment:
         gaps=[GapClaim(text="No Kubernetes experience", requirement_ids=["must-3"])],
         summary="Strong Python/FastAPI fit; Kubernetes is the main gap.",
     )
+
+
+class BlockingLLMClient(FakeLLMClient):
+    """Hangs forever on `block_on`, to simulate a process dying mid-step."""
+
+    def __init__(self, block_on: type[BaseModel], **kw) -> None:
+        super().__init__(**kw)
+        self.block_on = block_on
+        self.reached = asyncio.Event()
+
+    async def structured[T: BaseModel](
+        self, *, system: str, user: str, output_model: type[T], effort: str | None = None
+    ) -> T:
+        if output_model is self.block_on:
+            self.calls.append(LLMCall(system, user, output_model, effort))
+            self.reached.set()
+            await asyncio.Event().wait()  # never set: only cancellation ends this
+        return await super().structured(
+            system=system, user=user, output_model=output_model, effort=effort
+        )
+
+
+def default_responses() -> dict[type[BaseModel], BaseModel | Exception]:
+    from app.agents.schemas.cv import CVExtraction
+
+    return {
+        CVExtraction: sample_extraction(),
+        JobPostingExtraction: sample_job_extraction(),
+        FitAssessment: sample_fit_assessment(),
+    }
+
+
+async def seed_application(session_factory, job_text: str = "Senior Python Engineer " * 5):
+    """Insert a CV and an application row; return the application id."""
+    from app.agents.schemas.cv import ParsedCV
+    from app.services import application_repository, cv_repository
+
+    async with session_factory() as session:
+        cv = await cv_repository.create_cv(
+            session,
+            filename="cv.txt",
+            content_type="text/plain",
+            raw_text="raw",
+            parsed=ParsedCV.from_extraction(sample_extraction()),
+        )
+        application = await application_repository.create_application(
+            session, cv_id=cv.id, job_text=job_text
+        )
+        return application.id

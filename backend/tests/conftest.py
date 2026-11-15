@@ -1,14 +1,23 @@
+import asyncio
+import sys
 from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.agents.graph import build_graph
 from app.agents.schemas.cv import CVExtraction
 from app.agents.schemas.fit import FitAssessment
 from app.agents.schemas.job import JobPostingExtraction
-from app.api.deps import get_llm_client
+from app.api.deps import get_llm_client, get_runner
+from app.services.pipeline_runner import PipelineRunner
+
+if sys.platform == "win32":
+    # psycopg's async mode cannot run on the default Proactor loop on Windows.
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 from app.core.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import get_session
@@ -83,11 +92,25 @@ def test_settings() -> Settings:
 
 
 @pytest.fixture
+async def runner(
+    session_factory: async_sessionmaker[AsyncSession],
+    fake_llm: FakeLLMClient,
+    test_settings: Settings,
+) -> AsyncIterator[PipelineRunner]:
+    graph = build_graph(fake_llm, test_settings).compile(checkpointer=InMemorySaver())
+    r = PipelineRunner(graph, session_factory)
+    yield r
+    await r.shutdown()
+
+
+@pytest.fixture
 async def client(
     session_factory: async_sessionmaker[AsyncSession],
     fake_llm: FakeLLMClient,
     test_settings: Settings,
+    runner: PipelineRunner,
 ) -> AsyncIterator[AsyncClient]:
+    # ASGITransport does not run the lifespan, so no real checkpointer is opened.
     app = create_app()
 
     async def _session() -> AsyncIterator[AsyncSession]:
@@ -97,5 +120,6 @@ async def client(
     app.dependency_overrides[get_session] = _session
     app.dependency_overrides[get_llm_client] = lambda: fake_llm
     app.dependency_overrides[get_settings] = lambda: test_settings
+    app.dependency_overrides[get_runner] = lambda: runner
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
