@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 
@@ -6,7 +7,8 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
 from app.agents.checkpointer import open_checkpointer, postgres_checkpointer, to_psycopg_url
-from app.agents.graph import FIT_ANALYSIS, FIT_REVIEW, build_graph
+from app.agents.graph import CONTENT_REVIEW, FIT_ANALYSIS, FIT_REVIEW, build_graph
+from app.agents.schemas.content import ClaimCheck, CoverLetterDraft, TailoringDraft
 from app.agents.schemas.cv import ParsedCV
 from app.agents.schemas.fit import FitAssessment
 from app.core.config import Settings
@@ -34,24 +36,48 @@ async def test_non_postgres_url_uses_in_memory(caplog: pytest.LogCaptureFixture)
     assert "will NOT survive a restart" in caplog.text
 
 
-@pytest.mark.postgres
-@pytest.mark.skipif("TEST_DATABASE_URL" not in os.environ, reason="TEST_DATABASE_URL not set")
-async def test_postgres_state_survives_reconnect() -> None:
-    """Real AsyncPostgresSaver: crash mid-run, reconnect with a new pool, resume."""
+def _sqlite_saver(path: str):
+    from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+
+    return lambda: AsyncSqliteSaver.from_conn_string(path)
+
+
+@pytest.fixture(
+    params=[
+        "sqlite",
+        pytest.param(
+            "postgres",
+            marks=[
+                pytest.mark.postgres,
+                pytest.mark.skipif(
+                    "TEST_DATABASE_URL" not in os.environ, reason="TEST_DATABASE_URL not set"
+                ),
+            ],
+        ),
+    ]
+)
+def open_saver(request: pytest.FixtureRequest, tmp_path):
+    """A factory that opens a *new* checkpointer connection on the same database."""
+    if request.param == "sqlite":
+        return _sqlite_saver(str(tmp_path / "checkpoints.sqlite"))
     conninfo = to_psycopg_url(os.environ["TEST_DATABASE_URL"])
     assert conninfo is not None
+    return lambda: postgres_checkpointer(conninfo)
+
+
+async def test_state_survives_reconnect_through_both_gates(open_saver) -> None:
+    """Crash mid-run (A), resume on a new connection (B), answer both gates on yet
+    another connection (C). Runs on SQLite always; on real Postgres in CI."""
     settings = Settings(_env_file=None)
     config = thread_config(uuid.uuid4())
     state = {
-        "application_id": "pg-test",
+        "application_id": "reconnect-test",
         "cv": ParsedCV.from_extraction(sample_extraction()).model_dump(mode="json"),
         "job_text": "Senior Python Engineer posting",
     }
 
-    import asyncio
-
     llm_a = BlockingLLMClient(block_on=FitAssessment, responses=default_responses())
-    async with postgres_checkpointer(conninfo) as saver:
+    async with open_saver() as saver:
         graph = build_graph(llm_a, settings).compile(checkpointer=saver)
         task = asyncio.create_task(graph.ainvoke(state, config, durability="sync"))
         await llm_a.reached.wait()
@@ -59,20 +85,26 @@ async def test_postgres_state_survives_reconnect() -> None:
         await asyncio.gather(task, return_exceptions=True)
 
     llm_b = FakeLLMClient(responses=default_responses())
-    async with postgres_checkpointer(conninfo) as saver:
+    async with open_saver() as saver:
         graph = build_graph(llm_b, settings).compile(checkpointer=saver)
         snapshot = await graph.aget_state(config)
         assert tuple(snapshot.next) == (FIT_ANALYSIS,)
-        assert "job" in snapshot.values
+        assert "job" in snapshot.values and "company_brief" in snapshot.values
         await graph.ainvoke(None, config, durability="sync")  # runs fit, pauses at the gate
         assert tuple((await graph.aget_state(config)).next) == (FIT_REVIEW,)
+    assert [c.output_model for c in llm_b.calls] == [FitAssessment]  # nothing before re-run
 
-    # Process C approves the paused run over yet another pool.
-    async with postgres_checkpointer(conninfo) as saver:
-        graph = build_graph(FakeLLMClient(), settings).compile(checkpointer=saver)
+    llm_c = FakeLLMClient(responses=default_responses())
+    async with open_saver() as saver:
+        graph = build_graph(llm_c, settings).compile(checkpointer=saver)
+        await graph.ainvoke(Command(resume={"action": "approve"}), config, durability="sync")
+        assert tuple((await graph.aget_state(config)).next) == (CONTENT_REVIEW,)
         final = await graph.ainvoke(Command(resume={"action": "approve"}), config)
         assert (await graph.aget_state(config)).next == ()
 
     assert final["fit_report"]["overall_score"] == 71
-    assert final["reviews"][0]["action"] == "approve"
-    assert [c.output_model for c in llm_b.calls] == [FitAssessment]
+    assert [r["gate"] for r in final["reviews"]] == [FIT_REVIEW, CONTENT_REVIEW]
+    assert len(final["tailored"]["bullets"]) == 4
+    assert [c.output_model for c in llm_c.calls] == [
+        TailoringDraft, ClaimCheck, CoverLetterDraft, ClaimCheck
+    ]  # fmt: skip
