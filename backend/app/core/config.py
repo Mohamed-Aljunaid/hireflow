@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
@@ -39,6 +39,16 @@ class Settings(BaseSettings):
 
     max_upload_bytes: int = 5 * 1024 * 1024
     max_job_posting_chars: int = 50_000
+
+    @field_validator("database_url")
+    @classmethod
+    def _async_driver(cls, url: str) -> str:
+        """Hosts (e.g. Render) hand out postgres:// or postgresql:// URLs; SQLAlchemy's
+        async engine needs the asyncpg driver named."""
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+asyncpg://" + url.removeprefix(prefix)
+        return url
 
 
 @lru_cache

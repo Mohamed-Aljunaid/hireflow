@@ -1,0 +1,54 @@
+# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo.
+# Creates the API, the web frontend and a managed PostgreSQL 16.
+#
+# The public demo runs with LLM_MOCK=true (canned output, no cost). To use the real model:
+# set ANTHROPIC_API_KEY in the dashboard (prompted at creation) and LLM_MOCK=false.
+# Every real run is billed to that key.
+
+services:
+  - type: web
+    name: hireflow-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free  # free instances sleep when idle; interrupted runs resume on wake-up
+    region: frankfurt
+    healthCheckPath: /health
+    numInstances: 1  # pipeline runs live in the API process: keep exactly one
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hireflow-db
+          property: connectionString
+      - key: LLM_MOCK
+        value: "true"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-5-5
+      - key: LOG_LEVEL
+        value: INFO
+
+  - type: web
+    name: hireflow-web
+    runtime: docker
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    plan: free
+    region: frankfurt
+    healthCheckPath: /
+    envVars:
+      - key: API_HOSTPORT  # nginx proxies /api/* here over Render's private network
+        fromService:
+          type: web
+          name: hireflow-api
+          property: hostport
+
+databases:
+  - name: hireflow-db
+    databaseName: hireflow
+    user: hireflow
+    plan: free
+    region: frankfurt
+    postgresMajorVersion: "16"
+    ipAllowList: []  # no external connections; the API reaches it over the private network

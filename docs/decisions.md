@@ -189,3 +189,21 @@ Each entry: date, decision, context, alternatives, consequences.
 ## 2026-11-16 — Number check ignores digits inside identifiers
 - **Decision:** The code number check (claim checker and judge) now extracts quantities only where the digits don't follow a word character: `(?<!\w)\d+…`. So `40%`, `2M`, `2,000` and `3.12` count, while `HL7`, `p95`, `K8s`, `EC2` and `S3` don't.
 - **Context:** The first mock eval run flagged "7" from "HL7". A real bullet saying "K8s" while citing "Kubernetes" would have triggered pointless rewrites.
+
+---
+
+## 2026-11-16 — Phase 8: deploy on Render via a Blueprint; public demo in mock mode
+- **Decision (user's choice):** `render.yaml` defines `hireflow-api` and `hireflow-web` (both Docker web services) plus a managed Postgres 16 (`hireflow-db`, `ipAllowList: []`, private network only). The API runs `numInstances: 1` because pipeline runs live in its process. `LLM_MOCK=true` by default, so the public demo costs nothing. `ANTHROPIC_API_KEY` is a `sync: false` dashboard secret.
+- **Alternatives considered:** Fly.io (more setup, paid managed Postgres), Railway (config lives in the dashboard), a VPS with compose (Postgres not managed).
+- **Consequences:** Free instances sleep when idle. Runs interrupted by sleep resume on startup (Phase 3). Free Postgres is time-limited, so it must be upgraded to keep data.
+
+## 2026-11-16 — Images: one artifact for compose and Render
+- **Decision:** The API image is multi-stage: uv resolves the dependencies, then a plain `python:3.12-slim` runtime copies the venv. It runs as a non-root user, has a `HEALTHCHECK`, listens on `$PORT` (default 8000), and runs `alembic upgrade head` before uvicorn, which is safe with one instance. The frontend's nginx config is a template rendered at startup from `PORT` (default 80) and `API_HOSTPORT` (`api:8000` in compose, Render's private `host:port` from `fromService`). `DATABASE_URL` values of the form `postgres://` or `postgresql://` are rewritten to `postgresql+asyncpg://` in Settings.
+- **Consequences:** The same images run locally and on Render. Health checks live in the Dockerfiles (compose relies on them).
+
+## 2026-11-16 — CI
+- **Decision:** GitHub Actions with three jobs:
+  - **backend:** uv, ruff on backend + evals, pytest **with a Postgres 16 service and `TEST_DATABASE_URL`** (the first place the Postgres-only tests run), the eval-harness tests, and a check that `docs/openapi.json` is up to date;
+  - **frontend:** a check that the generated `schema.ts` is up to date, then lint, typecheck, Vitest and build;
+  - **images:** both Docker builds.
+- **Consequences:** The two drift checks keep the backend, the spec and the TS types in step.
