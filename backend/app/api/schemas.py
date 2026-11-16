@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from app.agents.schemas.content import CoverLetter, TailoredBullets
 from app.agents.schemas.cv import ParsedCV
@@ -19,6 +19,12 @@ class CVRead(BaseModel):
     content_type: str
     created_at: datetime
     parsed: ParsedCV
+
+    @computed_field
+    @property
+    def evidence(self) -> dict[str, str]:
+        """Every citable CV item by ID (what bullets, fit matches and edits reference)."""
+        return self.parsed.evidence_index()
 
 
 class JobCreate(BaseModel):

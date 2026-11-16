@@ -22,6 +22,10 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://hireflow:hireflow@localhost:5432/hireflow"
 
+    # Demo/E2E mode: canned responses, no API key needed (app/core/mock_llm.py).
+    llm_mock: bool = False
+    llm_mock_delay_seconds: float = 0.8
+
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-opus-5-5"
     anthropic_effort: Effort = "medium"

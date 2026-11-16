@@ -1,0 +1,1811 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "HireFlow",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "type": "object",
+                  "title": "Response Health Health Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cvs": {
+      "post": {
+        "tags": [
+          "cvs"
+        ],
+        "summary": "Upload Cv",
+        "operationId": "upload_cv_cvs_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_cv_cvs_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CVRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/cvs/{cv_id}": {
+      "get": {
+        "tags": [
+          "cvs"
+        ],
+        "summary": "Read Cv",
+        "operationId": "read_cv_cvs__cv_id__get",
+        "parameters": [
+          {
+            "name": "cv_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Cv Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CVRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "post": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Create Job",
+        "operationId": "create_job_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "jobs"
+        ],
+        "summary": "Read Job",
+        "operationId": "read_job_jobs__job_id__get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fit": {
+      "post": {
+        "tags": [
+          "fit"
+        ],
+        "summary": "Fit",
+        "description": "Standalone fit analysis (Phase 2). Not persisted; Phase 3 stores it per application.",
+        "operationId": "fit_fit_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FitResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Create Application",
+        "description": "Create an application and start its pipeline in the background. Poll GET for status.",
+        "operationId": "create_application_applications_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplicationCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/{app_id}": {
+      "get": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Read Application",
+        "operationId": "read_application_applications__app_id__get",
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "App Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/applications/{app_id}/resume": {
+      "post": {
+        "tags": [
+          "applications"
+        ],
+        "summary": "Resume Application",
+        "description": "Answer the pending review (approve / edit / reject); the run continues in the background.\n\n409 if the application is not paused at a gate; 422 if the decision does not fit it.",
+        "operationId": "resume_application_applications__app_id__resume_post",
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "App Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApplicationCreate": {
+        "properties": {
+          "cv_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cv Id"
+          },
+          "job_text": {
+            "type": "string",
+            "minLength": 50,
+            "title": "Job Text",
+            "description": "The job posting, pasted as plain text."
+          }
+        },
+        "type": "object",
+        "required": [
+          "cv_id",
+          "job_text"
+        ],
+        "title": "ApplicationCreate"
+      },
+      "ApplicationRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "cv_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cv Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "next_steps": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Next Steps",
+            "description": "Graph nodes still to run (empty when done)."
+          },
+          "pending_review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PendingReview"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set while status is awaiting_approval: what to review, and how."
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewRecord"
+            },
+            "type": "array",
+            "title": "Reviews"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobPosting"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fit_report": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FitReport"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "company_brief": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CompanyBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tailored": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TailoredBullets"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cover_letter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverLetter"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "cv_id",
+          "status",
+          "error",
+          "created_at",
+          "updated_at",
+          "next_steps"
+        ],
+        "title": "ApplicationRead"
+      },
+      "Body_upload_cv_cvs_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_cv_cvs_post"
+      },
+      "Bullet": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "Bullet"
+      },
+      "CVRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "parsed": {
+            "$ref": "#/components/schemas/ParsedCV"
+          },
+          "evidence": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Evidence",
+            "description": "Every citable CV item by ID (what bullets, fit matches and edits reference).",
+            "readOnly": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "content_type",
+          "created_at",
+          "parsed",
+          "evidence"
+        ],
+        "title": "CVRead"
+      },
+      "CompanyBrief": {
+        "properties": {
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/CompanyFact"
+            },
+            "type": "array",
+            "title": "Facts"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/Source"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "company",
+          "summary"
+        ],
+        "title": "CompanyBrief"
+      },
+      "CompanyFact": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "product",
+              "mission",
+              "values",
+              "news",
+              "culture",
+              "other"
+            ],
+            "title": "Category"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "category",
+          "source_id"
+        ],
+        "title": "CompanyFact"
+      },
+      "ContactInfo": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Full name as written on the CV."
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "links": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Links",
+            "description": "LinkedIn, GitHub, portfolio..."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ContactInfo"
+      },
+      "CoverLetter": {
+        "properties": {
+          "salutation": {
+            "type": "string",
+            "title": "Salutation"
+          },
+          "paragraphs": {
+            "items": {
+              "$ref": "#/components/schemas/CoverLetterParagraph"
+            },
+            "type": "array",
+            "title": "Paragraphs"
+          },
+          "closing": {
+            "type": "string",
+            "title": "Closing"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "salutation",
+          "paragraphs",
+          "closing"
+        ],
+        "title": "CoverLetter"
+      },
+      "CoverLetterParagraph": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source_cv_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Cv Refs"
+          },
+          "company_fact_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Company Fact Refs"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "model",
+              "human"
+            ],
+            "title": "Author",
+            "default": "model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "CoverLetterParagraph"
+      },
+      "EducationExtraction": {
+        "properties": {
+          "institution": {
+            "type": "string",
+            "title": "Institution"
+          },
+          "degree": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degree"
+          },
+          "field_of_study": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Of Study"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "institution"
+        ],
+        "title": "EducationExtraction"
+      },
+      "Experience": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "company": {
+            "type": "string",
+            "title": "Company"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "bullets": {
+            "items": {
+              "$ref": "#/components/schemas/Bullet"
+            },
+            "type": "array",
+            "title": "Bullets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "company"
+        ],
+        "title": "Experience"
+      },
+      "FitReport": {
+        "properties": {
+          "overall_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overall Score",
+            "description": "0-100 from verdicts (must-haves weigh 2x). None if the job lists no requirements."
+          },
+          "must_have_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Must Have Score"
+          },
+          "nice_to_have_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nice To Have Score"
+          },
+          "matches": {
+            "items": {
+              "$ref": "#/components/schemas/RequirementMatch"
+            },
+            "type": "array",
+            "title": "Matches"
+          },
+          "strengths": {
+            "items": {
+              "$ref": "#/components/schemas/StrengthClaim"
+            },
+            "type": "array",
+            "title": "Strengths"
+          },
+          "gaps": {
+            "items": {
+              "$ref": "#/components/schemas/GapClaim"
+            },
+            "type": "array",
+            "title": "Gaps"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "Corrections applied to the model's assessment."
+          }
+        },
+        "type": "object",
+        "required": [
+          "overall_score",
+          "must_have_score",
+          "nice_to_have_score",
+          "matches",
+          "strengths",
+          "gaps",
+          "summary"
+        ],
+        "title": "FitReport"
+      },
+      "FitRequest": {
+        "properties": {
+          "cv_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cv Id"
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cv_id",
+          "job_id"
+        ],
+        "title": "FitRequest"
+      },
+      "FitResponse": {
+        "properties": {
+          "cv_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Cv Id"
+          },
+          "job_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Job Id"
+          },
+          "report": {
+            "$ref": "#/components/schemas/FitReport"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cv_id",
+          "job_id",
+          "report"
+        ],
+        "title": "FitResponse"
+      },
+      "GapClaim": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "requirement_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirement Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "GapClaim"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "JobCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 50,
+            "title": "Text",
+            "description": "The job posting, pasted as plain text."
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "JobCreate"
+      },
+      "JobPosting": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "remote_policy": {
+            "type": "string",
+            "enum": [
+              "onsite",
+              "hybrid",
+              "remote",
+              "unspecified"
+            ],
+            "title": "Remote Policy",
+            "default": "unspecified"
+          },
+          "employment_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Employment Type"
+          },
+          "seniority": {
+            "type": "string",
+            "enum": [
+              "intern",
+              "junior",
+              "mid",
+              "senior",
+              "staff",
+              "principal",
+              "lead",
+              "manager",
+              "director",
+              "executive",
+              "unspecified"
+            ],
+            "title": "Seniority",
+            "default": "unspecified"
+          },
+          "salary_range": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Salary Range"
+          },
+          "must_haves": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "type": "array",
+            "title": "Must Haves"
+          },
+          "nice_to_haves": {
+            "items": {
+              "$ref": "#/components/schemas/Requirement"
+            },
+            "type": "array",
+            "title": "Nice To Haves"
+          },
+          "responsibilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Responsibilities"
+          },
+          "keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keywords"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "JobPosting"
+      },
+      "JobRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "parsed": {
+            "$ref": "#/components/schemas/JobPosting"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "parsed"
+        ],
+        "title": "JobRead"
+      },
+      "MatchOverride": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "met",
+              "partial",
+              "not_met"
+            ],
+            "title": "Verdict"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Note",
+            "description": "Why the verdict changed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "verdict",
+          "note"
+        ],
+        "title": "MatchOverride",
+        "description": "Human correction of one fit verdict. Evidence must still be real CV IDs."
+      },
+      "ParsedCV": {
+        "properties": {
+          "contact": {
+            "$ref": "#/components/schemas/ContactInfo"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Summary"
+          },
+          "experience": {
+            "items": {
+              "$ref": "#/components/schemas/Experience"
+            },
+            "type": "array",
+            "title": "Experience"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/Project"
+            },
+            "type": "array",
+            "title": "Projects"
+          },
+          "education": {
+            "items": {
+              "$ref": "#/components/schemas/EducationExtraction"
+            },
+            "type": "array",
+            "title": "Education"
+          },
+          "skills": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skills"
+          },
+          "certifications": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Certifications"
+          },
+          "languages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Languages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact"
+        ],
+        "title": "ParsedCV"
+      },
+      "PendingReview": {
+        "properties": {
+          "gate": {
+            "type": "string",
+            "enum": [
+              "fit_review",
+              "content_review"
+            ],
+            "title": "Gate"
+          },
+          "allowed_actions": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "approve",
+                "edit",
+                "regenerate",
+                "reject"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Actions"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload",
+            "description": "The artifact under review, e.g. the fit report."
+          }
+        },
+        "type": "object",
+        "required": [
+          "gate",
+          "allowed_actions",
+          "payload"
+        ],
+        "title": "PendingReview",
+        "description": "What GET /applications/{id} shows while the run is paused."
+      },
+      "Project": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "bullets": {
+            "items": {
+              "$ref": "#/components/schemas/Bullet"
+            },
+            "type": "array",
+            "title": "Bullets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Project"
+      },
+      "Requirement": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "skill",
+              "experience",
+              "education",
+              "certification",
+              "language",
+              "other"
+            ],
+            "title": "Category"
+          },
+          "importance": {
+            "type": "string",
+            "enum": [
+              "must",
+              "nice"
+            ],
+            "title": "Importance"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "category",
+          "importance"
+        ],
+        "title": "Requirement"
+      },
+      "RequirementMatch": {
+        "properties": {
+          "requirement_id": {
+            "type": "string",
+            "title": "Requirement Id"
+          },
+          "requirement_text": {
+            "type": "string",
+            "title": "Requirement Text"
+          },
+          "importance": {
+            "type": "string",
+            "enum": [
+              "must",
+              "nice"
+            ],
+            "title": "Importance"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "met",
+              "partial",
+              "not_met"
+            ],
+            "title": "Verdict"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "analyst",
+              "human"
+            ],
+            "title": "Source",
+            "description": "'human' when the verdict was overridden at review.",
+            "default": "analyst"
+          }
+        },
+        "type": "object",
+        "required": [
+          "requirement_id",
+          "requirement_text",
+          "importance",
+          "verdict",
+          "evidence_refs",
+          "rationale"
+        ],
+        "title": "RequirementMatch"
+      },
+      "ReviewDecision": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "edit",
+              "regenerate",
+              "reject"
+            ],
+            "title": "Action"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          },
+          "match_overrides": {
+            "items": {
+              "$ref": "#/components/schemas/MatchOverride"
+            },
+            "type": "array",
+            "title": "Match Overrides"
+          },
+          "text_edits": {
+            "items": {
+              "$ref": "#/components/schemas/TextEdit"
+            },
+            "type": "array",
+            "title": "Text Edits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ReviewDecision"
+      },
+      "ReviewRecord": {
+        "properties": {
+          "gate": {
+            "type": "string",
+            "enum": [
+              "fit_review",
+              "content_review"
+            ],
+            "title": "Gate"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "edit",
+              "regenerate",
+              "reject"
+            ],
+            "title": "Action"
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback"
+          },
+          "overridden_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Overridden Requirements"
+          },
+          "edited_items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Edited Items"
+          },
+          "decided_at": {
+            "type": "string",
+            "title": "Decided At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "gate",
+          "action",
+          "decided_at"
+        ],
+        "title": "ReviewRecord",
+        "description": "What the pipeline remembers about a decision (state['reviews'])."
+      },
+      "Source": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "Source"
+      },
+      "StrengthClaim": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "StrengthClaim"
+      },
+      "TailoredBullet": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "source_cv_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Cv Refs"
+          },
+          "requirement_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requirement Ids"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "model",
+              "human"
+            ],
+            "title": "Author",
+            "default": "model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "source_cv_refs"
+        ],
+        "title": "TailoredBullet"
+      },
+      "TailoredBullets": {
+        "properties": {
+          "bullets": {
+            "items": {
+              "$ref": "#/components/schemas/TailoredBullet"
+            },
+            "type": "array",
+            "title": "Bullets"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bullets"
+        ],
+        "title": "TailoredBullets"
+      },
+      "TextEdit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 3000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "TextEdit",
+        "description": "Human rewrite of one tailored bullet (tb-N) or letter paragraph (p-N)."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}

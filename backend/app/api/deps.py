@@ -6,13 +6,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.llm import AnthropicLLMClient, LLMClient
+from app.core.mock_llm import MockLLMClient
 from app.db.session import get_session
 from app.services.pipeline_runner import PipelineRunner
 
 
 @lru_cache
-def _default_llm_client() -> AnthropicLLMClient:
-    return AnthropicLLMClient(get_settings())
+def _default_llm_client() -> LLMClient:
+    settings = get_settings()
+    if settings.llm_mock:
+        return MockLLMClient(settings.llm_mock_delay_seconds)
+    return AnthropicLLMClient(settings)
 
 
 def get_llm_client() -> LLMClient:

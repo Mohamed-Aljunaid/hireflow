@@ -113,3 +113,10 @@ async def test_health(client: AsyncClient) -> None:
     resp = await client.get("/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok", "database": "ok"}
+
+
+async def test_cv_response_includes_evidence_index(client: AsyncClient) -> None:
+    body = (await upload(client, "cv.txt", SAMPLE_CV_TEXT.encode())).json()
+    expected = ParsedCV.model_validate(body["parsed"]).evidence_index()
+    assert body["evidence"] == expected
+    assert body["evidence"]["exp-1.b2"] == "Cut p95 latency 40% by introducing Redis caching."

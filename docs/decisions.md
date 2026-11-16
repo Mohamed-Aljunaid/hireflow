@@ -158,3 +158,21 @@ Each entry: date, decision, context, alternatives, consequences.
   - `regenerate` (with feedback) goes back to `tailor_bullets` with fresh rewrite budgets and the feedback in every later drafting prompt.
   - Each gate rejects the edit type of the other gate (422).
 - **Consequences:** Phase 6's editor can send `text_edits` directly.
+
+---
+
+## 2026-11-16 — Phase 6: frontend shape
+- **Decision:** One page, no router. Vite + React 19 + TS (strict) + Tailwind 4, with no component library. Types are generated from the backend's OpenAPI (`npm run gen:api` reads `docs/openapi.json`), plus a ~50-line `fetch` client. `diff` (jsdiff) is the only runtime dependency beyond React and Tailwind, used for the word-level bullet diff.
+- **Flow:** upload CV → paste job → steps panel polled every 1.5 s while `running` (polling stops while waiting for the user) → fit review → content review → export (copy / download .txt). `?cv=&app=` in the URL means a refresh resumes where you were.
+- **Alternatives:** SSE/WebSockets (more backend work; polling a handful of runs is fine); a router and a state library (nothing needs them yet).
+- **Consequences:** Optional fields in the generated types (Pydantic default → not `required`) are handled with `?? []` at the few places that read lists.
+
+## 2026-11-16 — `/api` prefix via proxy; nginx in Docker
+- **Decision:** The browser calls `/api/*`. The Vite dev server, and nginx in the frontend image, strip the prefix and proxy to the API, so the API needs no CORS. The frontend image is a two-stage node → nginx build, exposed on port 8080.
+
+## 2026-11-16 — `LLM_MOCK=true` for demos and end-to-end runs
+- **Decision:** `MockLLMClient` (app/core/mock_llm.py) returns the same canned sample data for every input, after `LLM_MOCK_DELAY_SECONDS` (default 0.8 s), so the UI visibly steps through the pipeline. The tests import the same samples, so there's one copy.
+- **Consequences:** In mock mode the parsed CV is always "Jordan Rivera", whatever you upload. It's a demo switch, not a fallback.
+
+## 2026-11-16 — `CVRead.evidence`
+- **Decision:** The CV response includes `evidence` (`ParsedCV.evidence_index()`), so the UI can show the text behind a cited ID (fit evidence, bullet diffs, the override picker) without copying the ID logic into TypeScript.
