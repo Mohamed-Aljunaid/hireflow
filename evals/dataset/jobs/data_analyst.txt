@@ -1,0 +1,17 @@
+Data Analyst - Greenleaf Groceries
+Toronto, hybrid (3 days in office)
+
+Greenleaf is a regional grocery chain with 120 stores.
+
+Responsibilities
+- Build dashboards for store operations.
+- Analyse promotions and pricing experiments.
+
+Must have
+- Strong SQL
+- Experience with Tableau or Power BI
+- Statistics and A/B testing
+
+Nice to have
+- Python for analysis (pandas)
+- Retail experience

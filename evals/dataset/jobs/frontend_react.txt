@@ -1,0 +1,14 @@
+Frontend Engineer (React) - Tidepool Learning
+Remote (UK), full-time, mid-level
+
+Tidepool makes reading apps for primary schools.
+
+Requirements
+- 2+ years building production React applications
+- TypeScript
+- Testing with Jest, React Testing Library or Cypress
+- Accessibility (WCAG) awareness
+
+Bonus
+- Next.js
+- Tailwind CSS

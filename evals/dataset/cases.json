@@ -1,0 +1,61 @@
+{
+  "jobs": {
+    "backend_python": {
+      "title": "Senior Backend Engineer",
+      "company": "Harbor Analytics",
+      "seniority": "senior",
+      "remote_policy": "remote",
+      "keywords": ["Python", "FastAPI", "Django", "PostgreSQL", "Kubernetes", "Celery"]
+    },
+    "data_analyst": {
+      "title": "Data Analyst",
+      "company": "Greenleaf Groceries",
+      "seniority": "unspecified",
+      "remote_policy": "hybrid",
+      "keywords": ["SQL", "Tableau", "Power BI", "A/B testing", "pandas", "statistics"]
+    },
+    "frontend_react": {
+      "title": "Frontend Engineer",
+      "company": "Tidepool Learning",
+      "seniority": "mid",
+      "remote_policy": "remote",
+      "keywords": ["React", "TypeScript", "Jest", "Cypress", "WCAG", "Next.js", "Tailwind"]
+    },
+    "devops_sre": {
+      "title": "Site Reliability Engineer",
+      "company": "Quanta Pay",
+      "seniority": "senior",
+      "remote_policy": "remote",
+      "keywords": ["Kubernetes", "Terraform", "AWS", "Prometheus", "Grafana", "Python"]
+    }
+  },
+  "cases": [
+    {"id": "backend-strong", "job": "backend_python", "cv": "backend_senior", "fit": "strong",
+     "supported_keywords": ["Python", "FastAPI", "Django", "PostgreSQL", "Kubernetes", "Celery"]},
+    {"id": "backend-medium", "job": "backend_python", "cv": "fullstack_mid", "fit": "medium",
+     "supported_keywords": ["PostgreSQL", "Python"]},
+    {"id": "backend-weak", "job": "backend_python", "cv": "data_analyst", "fit": "weak",
+     "supported_keywords": ["Python"]},
+
+    {"id": "data-strong", "job": "data_analyst", "cv": "data_analyst", "fit": "strong",
+     "supported_keywords": ["SQL", "Tableau", "A/B testing", "pandas", "statistics"]},
+    {"id": "data-medium", "job": "data_analyst", "cv": "career_changer", "fit": "medium",
+     "supported_keywords": ["pandas", "statistics"]},
+    {"id": "data-weak", "job": "data_analyst", "cv": "frontend_junior", "fit": "weak",
+     "supported_keywords": []},
+
+    {"id": "frontend-strong", "job": "frontend_react", "cv": "fullstack_mid", "fit": "strong",
+     "supported_keywords": ["React", "TypeScript", "Cypress", "Next.js", "Tailwind"]},
+    {"id": "frontend-medium", "job": "frontend_react", "cv": "frontend_junior", "fit": "medium",
+     "supported_keywords": ["React", "Jest", "WCAG"]},
+    {"id": "frontend-weak", "job": "frontend_react", "cv": "sre", "fit": "weak",
+     "supported_keywords": []},
+
+    {"id": "sre-strong", "job": "devops_sre", "cv": "sre", "fit": "strong",
+     "supported_keywords": ["Kubernetes", "Terraform", "AWS", "Prometheus", "Grafana", "Python"]},
+    {"id": "sre-medium", "job": "devops_sre", "cv": "backend_senior", "fit": "medium",
+     "supported_keywords": ["Kubernetes", "AWS", "Python"]},
+    {"id": "sre-weak", "job": "devops_sre", "cv": "career_changer", "fit": "weak",
+     "supported_keywords": ["Python"]}
+  ]
+}

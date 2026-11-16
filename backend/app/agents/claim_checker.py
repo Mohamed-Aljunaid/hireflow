@@ -18,7 +18,8 @@ from app.core.llm import LLMClient
 
 Problems = dict[str, list[str]]
 
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)*")
+# Quantities (40%, 2M, 2,000) but not digits inside identifiers (HL7, p95, K8s, EC2).
+_NUMBER = re.compile(r"(?<!\w)\d+(?:[.,]\d+)*")
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,7 @@ def paragraph_units(letter: CoverLetter) -> list[Unit]:
     ]
 
 
-def _numbers(text: str) -> set[str]:
+def numbers(text: str) -> set[str]:
     return {n.replace(",", "") for n in _NUMBER.findall(text)}
 
 
@@ -59,7 +60,7 @@ def deterministic_problems(
         cited = " ".join(
             [cv_index.get(r, "") for r in u.cv_refs] + [fact_index.get(r, "") for r in u.fact_refs]
         )
-        if missing := sorted(_numbers(u.text) - _numbers(cited)):
+        if missing := sorted(numbers(u.text) - numbers(cited)):
             found.append(f"numbers not in the cited sources: {missing}")
         if found:
             problems[u.id] = found

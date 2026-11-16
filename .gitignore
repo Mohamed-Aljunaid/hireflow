@@ -22,3 +22,7 @@ dist/
 .idea/
 Thumbs.db
 .DS_Store
+
+# Evals: mock runs are throwaway; real runs are committed.
+evals/results/*-mock.*
+evals/.pytest-tmp/

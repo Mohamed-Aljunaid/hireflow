@@ -52,6 +52,8 @@ class AnthropicLLMClient:
         self._effort = settings.anthropic_effort
         self._max_tokens = settings.anthropic_max_tokens
         self._fallback = settings.anthropic_refusal_fallback
+        # Running totals for this client (evals report them; the API ignores them).
+        self.usage = {"calls": 0, "input_tokens": 0, "output_tokens": 0}
 
     async def structured[T: BaseModel](
         self, *, system: str, user: str, output_model: type[T], effort: Effort | None = None
@@ -92,6 +94,9 @@ class AnthropicLLMClient:
                 "no Anthropic credentials configured (set ANTHROPIC_API_KEY)"
             ) from exc
 
+        self.usage["calls"] += 1
+        self.usage["input_tokens"] += response.usage.input_tokens
+        self.usage["output_tokens"] += response.usage.output_tokens
         if response.stop_reason == "refusal":
             category = response.stop_details.category if response.stop_details else None
             raise LLMRefusalError(f"model refused the request (category={category})")

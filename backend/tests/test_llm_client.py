@@ -60,6 +60,7 @@ async def test_returns_parsed_output_and_sends_expected_request() -> None:
     result = await client.structured(system="sys", user="hello", output_model=CVExtraction)
 
     assert result is expected
+    assert client.usage == {"calls": 1, "input_tokens": 10, "output_tokens": 20}
     kw = messages.kwargs
     assert kw["model"] == "test-model"
     assert kw["system"] == "sys"

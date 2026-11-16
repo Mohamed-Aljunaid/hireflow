@@ -1,0 +1,17 @@
+Tom Becker
+tom.becker@example.com | Berlin, Germany
+
+EXPERIENCE
+Mathematics Teacher, Lindenberg Gymnasium (Sep 2014 - Jul 2023)
+- Taught statistics and algebra to classes of 28 students.
+- Tracked student results in Excel and built grade-analysis spreadsheets.
+
+PROJECTS
+Data Analysis Certificate capstone (2024): analysed Berlin bike-share data with Python (pandas) and presented findings in a notebook.
+
+SKILLS
+Excel, Python (basic), pandas (basic), statistics, presenting
+
+EDUCATION
+Google Data Analytics Certificate, 2024
+MEd Mathematics, Humboldt University, 2014

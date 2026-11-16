@@ -148,3 +148,18 @@ def test_feedback_lines_and_drop() -> None:
     assert dropped.warnings == [
         "Removed bullet tb-2 after rewrites still failed the claim check: p1; p2"
     ]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Cut p95 latency 40% on EC2 and S3 with K8s.", {"40"}),  # identifiers ignored
+        ("Built an HL7 pipeline.", set()),
+        ("Served 2M requests/day, 2,000 rps, 3.5x faster.", {"2", "2000", "3.5"}),
+        ("Python 3.12 since 2019", {"3.12", "2019"}),  # versions are real claims
+    ],
+)
+def test_numbers_ignores_identifier_digits(text: str, expected: set[str]) -> None:
+    from app.agents.claim_checker import numbers
+
+    assert numbers(text) == expected

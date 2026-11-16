@@ -1,0 +1,18 @@
+Senior Backend Engineer (Python) - Harbor Analytics
+Remote (EU time zones), full-time
+
+Harbor Analytics builds forecasting software for European logistics companies.
+
+What you'll do
+- Own Python services that ingest and serve shipment forecasts.
+- Design APIs used by our web app and customers.
+
+Requirements
+- 5+ years of backend development with Python
+- Production experience with FastAPI or Django
+- Strong PostgreSQL skills
+- Experience running services on Kubernetes
+
+Nice to have
+- Experience with Celery or other task queues
+- Mentoring other engineers

@@ -176,3 +176,16 @@ Each entry: date, decision, context, alternatives, consequences.
 
 ## 2026-11-16 — `CVRead.evidence`
 - **Decision:** The CV response includes `evidence` (`ParsedCV.evidence_index()`), so the UI can show the text behind a cited ID (fit evidence, bullet diffs, the override picker) without copying the ID logic into TypeScript.
+
+---
+
+## 2026-11-16 — Phase 7: evals with an independent judge
+- **Decision:** The fabrication metric uses a **separate judge**: a different prompt that reads the **raw CV text** and the job posting rather than the pipeline's parsed IDs and citations. The pipeline's own claim checker is therefore graded by something that doesn't share its assumptions. A unit the judge skips counts as fabricated, and a code check requires every number to appear in the CV or the posting. The judge uses the same `ANTHROPIC_MODEL` by default.
+- **Dataset:** 12 synthetic pairs: 4 jobs × (strong, medium, weak). Fit is measured by **ordering within a job** rather than by absolute score bands, because the score's scale is ours to choose but its ranking isn't. Keyword coverage counts only keywords the CV supports, so it never rewards fabrication.
+- **Runner:** `uv run --project backend python -m evals.run` from the repo root. `evals/__init__.py` puts `backend/` on `sys.path`, so the evals drive the real app code. `--mock` runs the whole harness for free, and the threshold isn't enforced in mock mode.
+- **Alternatives:** reusing the claim checker as the metric (circular); LLM-only judging (misses numbers); absolute fit-score bands (they encode arbitrary calibration).
+- **Consequences:** The judge is an LLM and can err in either direction. Flagged units are listed verbatim in the report so a human can audit them.
+
+## 2026-11-16 — Number check ignores digits inside identifiers
+- **Decision:** The code number check (claim checker and judge) now extracts quantities only where the digits don't follow a word character: `(?<!\w)\d+…`. So `40%`, `2M`, `2,000` and `3.12` count, while `HL7`, `p95`, `K8s`, `EC2` and `S3` don't.
+- **Context:** The first mock eval run flagged "7" from "HL7". A real bullet saying "K8s" while citing "Kubernetes" would have triggered pointless rewrites.

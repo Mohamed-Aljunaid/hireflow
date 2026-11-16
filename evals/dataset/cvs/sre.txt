@@ -1,0 +1,19 @@
+Priya Nair
+priya.nair@example.com | Bangalore, India
+
+EXPERIENCE
+Site Reliability Engineer, Cloudnest (Apr 2019 - Present)
+- Operated 30 Kubernetes clusters on AWS (EKS) for internal platforms.
+- Managed infrastructure as code with Terraform and Atlantis.
+- Built Prometheus and Grafana alerting; cut paging noise by 60%.
+- Wrote Python and Bash tooling for incident automation.
+- Led on-call rotation for the platform team.
+
+Systems Administrator, Infotel (Jul 2016 - Mar 2019)
+- Administered Linux servers and Ansible playbooks.
+
+SKILLS
+Kubernetes, Terraform, AWS, Prometheus, Grafana, Python, Bash, Linux, Ansible, Docker
+
+EDUCATION
+BTech Computer Engineering, 2016

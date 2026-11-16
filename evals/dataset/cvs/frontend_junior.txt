@@ -1,0 +1,18 @@
+Aisha Rahman
+aisha.r@example.com | Manchester, UK
+
+EXPERIENCE
+Junior Frontend Developer, Nimbus Health (Sep 2023 - Present)
+- Built React components for the patient booking flow.
+- Fixed accessibility issues found in a WCAG audit.
+- Wrote unit tests with Jest and React Testing Library.
+
+PROJECTS
+Recipe Finder - personal React app using a public recipes API, deployed on Netlify.
+
+SKILLS
+JavaScript, React, HTML, CSS, Jest, Git
+
+EDUCATION
+Frontend Web Development Bootcamp, Le Wagon, 2023
+BA English Literature, 2021

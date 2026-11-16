@@ -1,0 +1,19 @@
+Senior Site Reliability Engineer - Quanta Pay
+Remote, India
+
+Quanta Pay processes card payments for small businesses.
+
+You will
+- Run our Kubernetes platform on AWS.
+- Own alerting and incident response.
+
+Requirements
+- 4+ years in SRE, DevOps or infrastructure roles
+- Kubernetes in production
+- Terraform
+- AWS
+- Monitoring with Prometheus/Grafana or similar
+
+Nice to have
+- Python or Go tooling
+- Leading on-call rotations

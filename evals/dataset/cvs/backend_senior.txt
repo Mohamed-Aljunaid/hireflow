@@ -1,0 +1,23 @@
+Maya Okafor
+maya.okafor@example.com | Lisbon, Portugal | github.com/mokafor-example
+
+SUMMARY
+Backend engineer with 8 years building Python services and data-heavy APIs.
+
+EXPERIENCE
+Staff Backend Engineer, Ledgerly (Jan 2021 - Present)
+- Designed the FastAPI payments service handling 12,000 transactions per minute.
+- Migrated reporting from MySQL to PostgreSQL, cutting query time from 9s to 1.2s.
+- Ran the service on Kubernetes (EKS) with Helm charts and canary deploys.
+- Mentored 4 engineers; led the async Python guild.
+
+Backend Engineer, ShipFast (Mar 2017 - Dec 2020)
+- Built Django REST APIs for order tracking used by 300 merchants.
+- Introduced Celery and Redis for background jobs.
+- Wrote integration tests with pytest; raised coverage from 40% to 85%.
+
+SKILLS
+Python, FastAPI, Django, PostgreSQL, Redis, Celery, Kubernetes, Docker, AWS, pytest
+
+EDUCATION
+BSc Computer Science, University of Porto, 2016

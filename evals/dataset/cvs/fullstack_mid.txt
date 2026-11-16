@@ -1,0 +1,18 @@
+Lucas Ferreira
+lucas.f@example.com | Remote
+
+EXPERIENCE
+Full-Stack Developer, BrightCart (Jun 2021 - Present)
+- Built React and TypeScript storefront features used by 50,000 monthly shoppers.
+- Developed Node.js (Express) APIs backed by PostgreSQL.
+- Added Cypress end-to-end tests to the checkout flow.
+
+Junior Developer, Pixelworks Agency (Aug 2019 - May 2021)
+- Built marketing sites with Next.js and Tailwind CSS.
+- Wrote small Python scripts to automate image exports.
+
+SKILLS
+TypeScript, React, Next.js, Node.js, Express, PostgreSQL, Tailwind CSS, Cypress, Git
+
+EDUCATION
+BSc Information Systems, 2019

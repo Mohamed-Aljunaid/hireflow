@@ -1,0 +1,8 @@
+extend = "../backend/pyproject.toml"
+
+[lint.isort]
+known-first-party = ["app", "evals"]
+
+[lint.per-file-ignores]
+# Blocking file reads inside async tests are fine.
+"tests/*" = ["ASYNC240"]
