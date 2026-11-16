@@ -7,11 +7,13 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agents.graph import FIT_ANALYSIS, FIT_REVIEW, PARSE_JOB, build_graph
+from app.agents.graph import CONTENT_REVIEW, FIT_ANALYSIS, FIT_REVIEW, PARSE_JOB, build_graph
 from app.agents.review import ReviewValidationError
+from app.agents.schemas.content import ClaimCheck, CoverLetterDraft, TailoringDraft
 from app.agents.schemas.fit import FitAssessment, FitReport
 from app.agents.schemas.job import JobPostingExtraction
-from app.agents.schemas.review import MatchOverride, ReviewDecision
+from app.agents.schemas.research import CompanyResearch
+from app.agents.schemas.review import MatchOverride, ReviewDecision, TextEdit
 from app.core.config import Settings
 from app.core.llm import LLMRefusalError
 from app.services import application_repository as apps
@@ -42,6 +44,11 @@ async def status_of(factory: Factory, app_id: uuid.UUID) -> tuple[str, str | Non
         application = await apps.get_application(session, app_id)
         assert application is not None
         return application.status, application.error
+
+
+async def approve(runner: PipelineRunner, app_id: uuid.UUID) -> None:
+    await runner.resume(app_id, APPROVE)
+    await runner.wait(app_id)
 
 
 async def run_to_gate(runner: PipelineRunner, factory: Factory) -> uuid.UUID:
@@ -117,12 +124,23 @@ async def test_approve_completes(session_factory: Factory, settings: Settings) -
     assert await status_of(session_factory, app_id) == ("running", None)
     await runner.wait(app_id)
 
+    # Drafting ran and the run paused again at the content gate.
+    assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
+    snapshot = await runner.snapshot(app_id)
+    assert pending_review(snapshot).gate == CONTENT_REVIEW
+    assert "cover_letter" in snapshot.values
+
+    await approve(runner, app_id)
+
     assert await status_of(session_factory, app_id) == ("completed", None)
     snapshot = await runner.snapshot(app_id)
     assert snapshot.next == ()
-    assert snapshot.values["reviews"][0]["action"] == "approve"
+    assert [(r["gate"], r["action"]) for r in snapshot.values["reviews"]] == [
+        (FIT_REVIEW, "approve"),
+        (CONTENT_REVIEW, "approve"),
+    ]
     assert snapshot.values["reviews"][0]["feedback"] == "Looks right"
-    assert len(llm.calls) == 2  # no LLM work re-done on resume
+    assert len(llm.calls) == 7  # 3 to the fit gate + 4 drafting; nothing re-done on resume
 
 
 async def test_edit_then_continue(session_factory: Factory, settings: Settings) -> None:
@@ -143,7 +161,7 @@ async def test_edit_then_continue(session_factory: Factory, settings: Settings) 
     await runner.resume(app_id, decision)
     await runner.wait(app_id)
 
-    assert await status_of(session_factory, app_id) == ("completed", None)
+    assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
     report = FitReport.model_validate((await runner.snapshot(app_id)).values["fit_report"])
     assert report.matches[2].verdict == "partial"
     assert report.matches[2].source == "human"
@@ -185,16 +203,59 @@ async def test_invalid_edit_is_rejected_before_resuming(
 
     # Still paused and answerable: a bad edit never kills the run.
     assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
-    await runner.resume(app_id, APPROVE)
+    await approve(runner, app_id)
+    assert pending_review(await runner.snapshot(app_id)).gate == CONTENT_REVIEW
+
+
+async def test_wrong_edit_kind_for_gate_is_rejected(
+    session_factory: Factory, settings: Settings
+) -> None:
+    runner = make_runner(FakeLLMClient(responses=default_responses()), settings, session_factory)
+    app_id = await run_to_gate(runner, session_factory)
+
+    text_edit = ReviewDecision(action="edit", text_edits=[TextEdit(id="tb-1", text="x")])
+    with pytest.raises(ReviewValidationError, match="fit_review edits are match_overrides"):
+        await runner.resume(app_id, text_edit)
+    with pytest.raises(ReviewValidationError, match="'regenerate' is not allowed at fit_review"):
+        await runner.resume(app_id, ReviewDecision(action="regenerate"))
+
+    await approve(runner, app_id)  # now at content_review
+    override = ReviewDecision(
+        action="edit",
+        match_overrides=[
+            MatchOverride(requirement_id="must-1", verdict="met", evidence_refs=["exp-1"], note="n")
+        ],
+    )
+    with pytest.raises(ReviewValidationError, match="content_review edits are text_edits"):
+        await runner.resume(app_id, override)
+    unknown = ReviewDecision(action="edit", text_edits=[TextEdit(id="tb-99", text="x")])
+    with pytest.raises(ReviewValidationError, match="tb-99"):
+        await runner.resume(app_id, unknown)
+    assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
+
+
+async def test_regenerate_redrafts_and_pauses_again(
+    session_factory: Factory, settings: Settings
+) -> None:
+    llm = FakeLLMClient(responses=default_responses())
+    runner = make_runner(llm, settings, session_factory)
+    app_id = await run_to_gate(runner, session_factory)
+    await approve(runner, app_id)
+
+    await runner.resume(app_id, ReviewDecision(action="regenerate", feedback="Shorter"))
     await runner.wait(app_id)
-    assert await status_of(session_factory, app_id) == ("completed", None)
+
+    assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
+    assert len(llm.calls_for(TailoringDraft)) == 2
+    assert "Shorter" in llm.calls_for(TailoringDraft)[1].user
 
 
 async def test_resume_when_not_paused_raises(session_factory: Factory, settings: Settings) -> None:
     runner = make_runner(FakeLLMClient(responses=default_responses()), settings, session_factory)
     app_id = await run_to_gate(runner, session_factory)
-    await runner.resume(app_id, APPROVE)
-    await runner.wait(app_id)
+    await approve(runner, app_id)
+    await approve(runner, app_id)
+    assert await status_of(session_factory, app_id) == ("completed", None)
 
     with pytest.raises(NotAwaitingApprovalError):
         await runner.resume(app_id, APPROVE)  # already completed
@@ -279,12 +340,15 @@ async def test_approval_after_restart(
         assert await runner_b.resume_incomplete() == []
         assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
 
-        await runner_b.resume(app_id, ReviewDecision(action="approve"))
-        await runner_b.wait(app_id)
+        await approve(runner_b, app_id)  # fit gate -> drafting -> content gate
+        await approve(runner_b, app_id)
         final = await runner_b.snapshot(app_id)
 
     assert await status_of(session_factory, app_id) == ("completed", None)
-    assert llm_b.calls == []  # nothing re-run in process B
+    # Process B only did the work after the gate: nothing before it was re-run.
+    assert [c.output_model for c in llm_b.calls] == [
+        TailoringDraft, ClaimCheck, CoverLetterDraft, ClaimCheck
+    ]  # fmt: skip
     assert final.values["fit_report"]["overall_score"] == 71
 
 
@@ -301,7 +365,7 @@ async def test_status_lost_while_paused_is_repaired(
 
     assert await runner.resume_incomplete() == []
     assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
-    assert len(llm.calls) == 2
+    assert len(llm.calls) == 3
 
 
 async def test_resume_without_checkpoint_starts_over(
@@ -315,7 +379,9 @@ async def test_resume_without_checkpoint_starts_over(
     await runner.wait(app_id)
 
     assert await status_of(session_factory, app_id) == ("awaiting_approval", None)
-    assert [c.output_model for c in llm.calls] == [JobPostingExtraction, FitAssessment]
+    assert [c.output_model for c in llm.calls] == [
+        JobPostingExtraction, CompanyResearch, FitAssessment
+    ]  # fmt: skip
 
 
 async def test_finished_run_with_lost_status_is_repaired(

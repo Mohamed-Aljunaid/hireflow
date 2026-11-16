@@ -1,10 +1,20 @@
 """Test doubles. No test talks to the real Anthropic API."""
 
 import asyncio
+import re
 from dataclasses import dataclass, field
+from typing import Any
 
 from pydantic import BaseModel
 
+from app.agents.schemas.content import (
+    BulletDraft,
+    ClaimCheck,
+    ClaimFinding,
+    CoverLetterDraft,
+    ParagraphDraft,
+    TailoringDraft,
+)
 from app.agents.schemas.cv import (
     ContactInfo,
     CVExtraction,
@@ -14,6 +24,7 @@ from app.agents.schemas.cv import (
 )
 from app.agents.schemas.fit import FitAssessment, GapClaim, RequirementJudgement, StrengthClaim
 from app.agents.schemas.job import JobPostingExtraction, RequirementExtraction
+from app.agents.schemas.research import CompanyResearch, FactExtraction
 
 
 @dataclass
@@ -26,9 +37,13 @@ class LLMCall:
 
 @dataclass
 class FakeLLMClient:
-    """Returns canned responses keyed by output model; records every call."""
+    """Returns canned responses keyed by output model; records every call.
 
-    responses: dict[type[BaseModel], BaseModel | Exception] = field(default_factory=dict)
+    A response may be a model, an exception, a callable(user_prompt) -> either, or a
+    list of those consumed in order (the last one repeats).
+    """
+
+    responses: dict[type[BaseModel], Any] = field(default_factory=dict)
     calls: list[LLMCall] = field(default_factory=list)
 
     async def structured[T: BaseModel](
@@ -36,10 +51,17 @@ class FakeLLMClient:
     ) -> T:
         self.calls.append(LLMCall(system, user, output_model, effort))
         response = self.responses[output_model]
+        if isinstance(response, list):
+            response = response.pop(0) if len(response) > 1 else response[0]
+        if callable(response) and not isinstance(response, BaseModel):
+            response = response(user)
         if isinstance(response, Exception):
             raise response
         assert isinstance(response, output_model)
         return response
+
+    def calls_for(self, output_model: type[BaseModel]) -> list[LLMCall]:
+        return [c for c in self.calls if c.output_model is output_model]
 
 
 def sample_extraction() -> CVExtraction:
@@ -176,14 +198,104 @@ class BlockingLLMClient(FakeLLMClient):
         )
 
 
-def default_responses() -> dict[type[BaseModel], BaseModel | Exception]:
+def default_responses() -> dict[type[BaseModel], Any]:
     from app.agents.schemas.cv import CVExtraction
 
     return {
         CVExtraction: sample_extraction(),
         JobPostingExtraction: sample_job_extraction(),
+        CompanyResearch: sample_company_research(),
         FitAssessment: sample_fit_assessment(),
+        TailoringDraft: sample_tailoring_draft(),
+        CoverLetterDraft: sample_cover_letter_draft(),
+        ClaimCheck: all_supported,
     }
+
+
+def sample_company_research() -> CompanyResearch:
+    return CompanyResearch(
+        summary="Northwind Labs is hiring a senior engineer to own its backend services.",
+        facts=[
+            FactExtraction(
+                text="The role is remote within the US.", category="culture",
+                source_id="job_posting",
+            ),
+        ],
+    )  # fmt: skip
+
+
+# Faithful to sample_extraction(): every bullet/paragraph is supported by its refs.
+def sample_tailoring_draft() -> TailoringDraft:
+    return TailoringDraft(
+        bullets=[
+            BulletDraft(
+                text="Led migration of a monolith to FastAPI microservices serving "
+                "2M requests/day.",
+                source_cv_refs=["exp-1.b1"], requirement_ids=["must-2"],
+            ),
+            BulletDraft(
+                text="Cut p95 latency 40% by introducing Redis caching.",
+                source_cv_refs=["exp-1.b2"],
+            ),
+            BulletDraft(
+                text="Built an HL7 ingestion pipeline in Python and PostgreSQL.",
+                source_cv_refs=["exp-2.b1"], requirement_ids=["must-1"],
+            ),
+            BulletDraft(
+                text="Maintain pg-snapshots, an open-source Postgres tool with 300+ GitHub stars.",
+                source_cv_refs=["proj-1", "proj-1.b1"], requirement_ids=["nice-1"],
+            ),
+        ]
+    )  # fmt: skip
+
+
+def sample_cover_letter_draft() -> CoverLetterDraft:
+    return CoverLetterDraft(
+        salutation="Dear Northwind Labs Hiring Team,",
+        paragraphs=[
+            ParagraphDraft(
+                text="At Acme Analytics I led the migration of a monolith to FastAPI "
+                "microservices serving 2M requests/day.",
+                source_cv_refs=["exp-1", "exp-1.b1"],
+            ),
+            ParagraphDraft(
+                text="Before that, at Brightside Health, I built an HL7 ingestion pipeline "
+                "in Python and PostgreSQL.",
+                source_cv_refs=["exp-2", "exp-2.b1"],
+            ),
+            ParagraphDraft(
+                text="I am glad the role is remote within the US, and would welcome a "
+                "conversation.",
+                company_fact_refs=["co-1"],
+            ),
+        ],
+        closing="Best regards,\nJordan Rivera",
+    )
+
+
+UNIT_ID = re.compile(r"^\[((?:tb|p)-\d+)\]", re.MULTILINE)
+
+
+def all_supported(user: str) -> ClaimCheck:
+    """Claim-check fake: every unit in the prompt is supported."""
+    return ClaimCheck(
+        findings=[ClaimFinding(unit_id=u, supported=True) for u in UNIT_ID.findall(user)]
+    )
+
+
+def flag_units(flags: dict[str, str]):
+    """Claim-check fake: units in `flags` are unsupported (with that problem)."""
+
+    def check(user: str) -> ClaimCheck:
+        return ClaimCheck(
+            findings=[
+                ClaimFinding(unit_id=u, supported=u not in flags,
+                             problems=[flags[u]] if u in flags else [])
+                for u in UNIT_ID.findall(user)
+            ]
+        )  # fmt: skip
+
+    return check
 
 
 async def seed_application(session_factory, job_text: str = "Senior Python Engineer " * 5):

@@ -135,3 +135,26 @@ Each entry: date, decision, context, alternatives, consequences.
 
   The runner applies it whenever `ainvoke` returns. Startup recovery uses it too, so a row stuck at `running` while its checkpoint is paused, for example after a crash between the status flip and the resume, is repaired to `awaiting_approval` without running anything.
 - **Consequences:** The row and the checkpoint can't drift apart permanently. `pending_review` is shown only while the row says `awaiting_approval`, because the old interrupt stays in the checkpoint until the gate node finishes.
+
+---
+
+## 2026-11-16 — Phase 5: claim checker = code checks + LLM judge, bounded rewrites
+- **Decision:** Each tailored bullet (`tb-N`) and letter paragraph (`p-N`) is a unit that cites its sources (CV IDs, plus company-fact IDs for the letter).
+  - **Code checks first:** cited IDs must exist, bullets must cite at least one CV item, and every number in the text must appear in the cited sources' text.
+  - **Then the LLM judges** each unit against only its own cited text. A unit the LLM doesn't return counts as unsupported.
+  - **Failures go back to the drafting agent** as `<claim_check_failures>`, at most `CLAIM_CHECK_MAX_REWRITES` (2) times. After that, unsupported units are **dropped**, with a warning, before the human sees them.
+- **Context:** PLAN's done-when: a fabricated claim must be caught and removed or rewritten. The code layer catches invented numbers and IDs even when the LLM judge is wrong (tested).
+- **Alternatives:** LLM-only checking (misses numbers it is lenient about); retrying without limit (cost, possible loop).
+- **Consequences:** Derived numbers ("5+ years" from the dates) fail the number check, and the prompts tell the writers to avoid them. Conservative by design.
+
+## 2026-11-16 — Research: SearchProvider interface; default is posting-only
+- **Decision:** `research_company()` builds the brief from sources: the job posting, plus results from a `SearchProvider` when one is configured. Every fact cites a source ID, and facts citing unknown sources are dropped. The default `NoSearchProvider` returns nothing. A search failure falls back to the posting with a warning.
+- **Context:** Anthropic's web-search tool returns encrypted page content plus citations, and citations can't be combined with structured outputs, so it can't feed a structured, source-checked brief. A third-party search API would mean another key and dependency that nobody has asked for yet.
+- **Consequences:** Out of the box the "research" covers only what the posting says. To add real search, write one provider class and pass it to `build_graph(search=...)`.
+
+## 2026-11-16 — Content gate: approve / edit / regenerate / reject
+- **Decision:** One `content_review` gate after both drafts, as in PLAN's graph, rather than separate gates for bullets and letter.
+  - `edit` replaces the text of a `tb-N` or `p-N` item; its citations are kept, and it is marked `author: "human"`. **Edited text is not re-checked:** it's the candidate's own words about themselves.
+  - `regenerate` (with feedback) goes back to `tailor_bullets` with fresh rewrite budgets and the feedback in every later drafting prompt.
+  - Each gate rejects the edit type of the other gate (422).
+- **Consequences:** Phase 6's editor can send `text_edits` directly.

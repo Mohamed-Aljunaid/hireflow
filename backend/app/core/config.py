@@ -25,8 +25,10 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-opus-5-5"
     anthropic_effort: Effort = "medium"
-    # Judgement-heavy agents (fit analysis) run at this effort.
+    # Judgement-heavy agents (fit analysis, tailoring, writing, claim checks) run at this effort.
     anthropic_analysis_effort: Effort = "high"
+    # Rewrites allowed after a failed claim check before unsupported items are dropped.
+    claim_check_max_rewrites: int = 2
     anthropic_max_tokens: int = 16000
     # Server-side refusal fallback (beta). Routes declined requests to a fallback model.
     anthropic_refusal_fallback: bool = True

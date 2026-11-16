@@ -9,25 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import StaticPool
 
 from app.agents.graph import build_graph
-from app.agents.schemas.cv import CVExtraction
-from app.agents.schemas.fit import FitAssessment
-from app.agents.schemas.job import JobPostingExtraction
 from app.api.deps import get_llm_client, get_runner
-from app.services.pipeline_runner import PipelineRunner
-
-if sys.platform == "win32":
-    # psycopg's async mode cannot run on the default Proactor loop on Windows.
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 from app.core.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import get_session
 from app.main import create_app
-from tests.fakes import (
-    FakeLLMClient,
-    sample_extraction,
-    sample_fit_assessment,
-    sample_job_extraction,
-)
+from app.services.pipeline_runner import PipelineRunner
+from tests.fakes import FakeLLMClient, default_responses
+
+if sys.platform == "win32":
+    # psycopg's async mode cannot run on the default Proactor loop on Windows.
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 SAMPLE_JOB_TEXT = """Senior Python Engineer - Northwind Labs (Remote, US)
 
@@ -72,13 +64,7 @@ async def session(session_factory: async_sessionmaker[AsyncSession]) -> AsyncIte
 
 @pytest.fixture
 def fake_llm() -> FakeLLMClient:
-    return FakeLLMClient(
-        responses={
-            CVExtraction: sample_extraction(),
-            JobPostingExtraction: sample_job_extraction(),
-            FitAssessment: sample_fit_assessment(),
-        }
-    )
+    return FakeLLMClient(responses=default_responses())
 
 
 @pytest.fixture

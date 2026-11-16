@@ -10,11 +10,12 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.agents.schemas.fit import Verdict
 
-Gate = Literal["fit_review"]  # Phase 5 adds the tailoring and cover-letter gates
-Action = Literal["approve", "edit", "reject"]
+Gate = Literal["fit_review", "content_review"]
+Action = Literal["approve", "edit", "regenerate", "reject"]
 
 GATE_ACTIONS: dict[str, tuple[Action, ...]] = {
     "fit_review": ("approve", "edit", "reject"),
+    "content_review": ("approve", "edit", "regenerate", "reject"),
 }
 
 
@@ -27,20 +28,32 @@ class MatchOverride(BaseModel):
     note: str = Field(min_length=1, max_length=1000, description="Why the verdict changed.")
 
 
+class TextEdit(BaseModel):
+    """Human rewrite of one tailored bullet (tb-N) or letter paragraph (p-N)."""
+
+    id: str
+    text: str = Field(min_length=1, max_length=3000)
+
+
 class ReviewDecision(BaseModel):
     action: Action
     feedback: str | None = Field(None, max_length=2000)
-    match_overrides: list[MatchOverride] = Field(default_factory=list)
+    match_overrides: list[MatchOverride] = Field(default_factory=list)  # fit_review
+    text_edits: list[TextEdit] = Field(default_factory=list)  # content_review
 
     @model_validator(mode="after")
-    def _overrides_only_with_edit(self) -> Self:
-        if self.action == "edit" and not self.match_overrides:
-            raise ValueError("action 'edit' needs at least one match override")
-        if self.action != "edit" and self.match_overrides:
-            raise ValueError(f"action '{self.action}' cannot carry match overrides")
-        ids = [o.requirement_id for o in self.match_overrides]
-        if len(ids) != len(set(ids)):
-            raise ValueError("each requirement can be overridden at most once")
+    def _edits_only_with_edit(self) -> Self:
+        has_edits = bool(self.match_overrides or self.text_edits)
+        if self.action == "edit" and not has_edits:
+            raise ValueError("action 'edit' needs at least one edit")
+        if self.action != "edit" and has_edits:
+            raise ValueError(f"action '{self.action}' cannot carry edits")
+        for ids in (
+            [o.requirement_id for o in self.match_overrides],
+            [e.id for e in self.text_edits],
+        ):
+            if len(ids) != len(set(ids)):
+                raise ValueError("each item can be edited at most once")
         return self
 
 
@@ -51,6 +64,7 @@ class ReviewRecord(BaseModel):
     action: Action
     feedback: str | None = None
     overridden_requirements: list[str] = Field(default_factory=list)
+    edited_items: list[str] = Field(default_factory=list)
     decided_at: str
 
 

@@ -3,8 +3,6 @@ import uuid
 from fastapi import APIRouter, HTTPException, status
 
 from app.agents.review import ReviewValidationError
-from app.agents.schemas.fit import FitReport
-from app.agents.schemas.job import JobPosting
 from app.agents.schemas.review import ReviewDecision, ReviewRecord
 from app.api.deps import RunnerDep, SessionDep, SettingsDep
 from app.api.schemas import ApplicationCreate, ApplicationRead
@@ -32,10 +30,12 @@ async def _read(application: Application, runner: PipelineRunner) -> Application
         next_steps=list(snapshot.next),
         pending_review=review,
         reviews=[ReviewRecord.model_validate(r) for r in values.get("reviews", [])],
-        job=JobPosting.model_validate(values["job"]) if "job" in values else None,
-        fit_report=(
-            FitReport.model_validate(values["fit_report"]) if "fit_report" in values else None
-        ),
+        # Pydantic validates the stored dicts into the response models.
+        job=values.get("job"),
+        fit_report=values.get("fit_report"),
+        company_brief=values.get("company_brief"),
+        tailored=values.get("tailored"),
+        cover_letter=values.get("cover_letter"),
     )
 
 

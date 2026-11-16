@@ -34,13 +34,13 @@ def test_approve_and_reject_need_no_overrides() -> None:
 
 
 def test_edit_requires_overrides() -> None:
-    with pytest.raises(ValidationError, match="at least one match override"):
+    with pytest.raises(ValidationError, match="at least one edit"):
         ReviewDecision(action="edit")
 
 
 @pytest.mark.parametrize("action", ["approve", "reject"])
 def test_overrides_only_with_edit(action: str) -> None:
-    with pytest.raises(ValidationError, match="cannot carry match overrides"):
+    with pytest.raises(ValidationError, match="cannot carry edits"):
         ReviewDecision(action=action, match_overrides=[override("must-1", "met", ["exp-1"])])
 
 
@@ -55,7 +55,7 @@ def test_duplicate_override_rejected() -> None:
         )
 
 
-@pytest.mark.parametrize("action", ["regenerate", "approved", ""])
+@pytest.mark.parametrize("action", ["regenerated", "approved", ""])
 def test_unknown_action_rejected(action: str) -> None:
     with pytest.raises(ValidationError):
         ReviewDecision.model_validate({"action": action})
@@ -116,3 +116,64 @@ def test_all_errors_reported_together(cv: ParsedCV, report: FitReport) -> None:
             report, cv, [override("must-99", "met", []), override("must-3", "met", ["nope"])]
         )
     assert "must-99" in str(info.value) and "nope" in str(info.value)
+
+
+# ---------- content_review: apply_text_edits ----------
+
+
+def content():
+    from app.agents.schemas.content import (
+        CoverLetter,
+        CoverLetterParagraph,
+        TailoredBullet,
+        TailoredBullets,
+    )
+
+    tailored = TailoredBullets(
+        bullets=[
+            TailoredBullet(id="tb-1", text="a", source_cv_refs=["exp-1.b1"]),
+            TailoredBullet(id="tb-2", text="b", source_cv_refs=["exp-1.b2"]),
+        ]
+    )
+    letter = CoverLetter(
+        salutation="Hi,",
+        paragraphs=[CoverLetterParagraph(id="p-1", text="c", source_cv_refs=["exp-1"])],
+        closing="Bye",
+    )
+    return tailored, letter
+
+
+def test_text_edits_replace_text_and_keep_citations() -> None:
+    from app.agents.review import apply_text_edits
+    from app.agents.schemas.review import TextEdit
+
+    tailored, letter = content()
+    new_t, new_l = apply_text_edits(
+        tailored, letter, [TextEdit(id="tb-2", text="  B!  "), TextEdit(id="p-1", text="C")]
+    )
+
+    assert [(b.text, b.author) for b in new_t.bullets] == [("a", "model"), ("B!", "human")]
+    assert new_t.bullets[1].source_cv_refs == ["exp-1.b2"]
+    assert (new_l.paragraphs[0].text, new_l.paragraphs[0].author) == ("C", "human")
+    assert tailored.bullets[1].text == "b"  # originals untouched
+
+
+def test_text_edit_unknown_id_rejected() -> None:
+    from app.agents.review import apply_text_edits
+    from app.agents.schemas.review import TextEdit
+
+    tailored, letter = content()
+    with pytest.raises(ReviewValidationError, match="tb-3"):
+        apply_text_edits(tailored, letter, [TextEdit(id="tb-3", text="x")])
+
+
+def test_text_edits_need_edit_action_and_unique_ids() -> None:
+    with pytest.raises(ValidationError, match="cannot carry edits"):
+        ReviewDecision(action="approve", text_edits=[{"id": "tb-1", "text": "x"}])
+    with pytest.raises(ValidationError, match="at most once"):
+        ReviewDecision(
+            action="edit",
+            text_edits=[{"id": "tb-1", "text": "x"}, {"id": "tb-1", "text": "y"}],
+        )
+    with pytest.raises(ValidationError):
+        ReviewDecision(action="edit", text_edits=[{"id": "tb-1", "text": ""}])

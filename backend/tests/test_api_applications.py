@@ -3,6 +3,7 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from app.agents.schemas.content import CoverLetterDraft
 from app.agents.schemas.fit import FitAssessment
 from app.core.llm import LLMUnavailableError
 from app.services.pipeline_runner import PipelineRunner
@@ -131,15 +132,78 @@ async def test_resume_approve(client: AsyncClient, runner: PipelineRunner) -> No
 
     assert accepted["status"] == "running"
     assert accepted["pending_review"] is None
-    assert final["status"] == "completed"
-    assert final["pending_review"] is None
-    assert final["next_steps"] == []
-    [review] = final["reviews"]
-    assert (review["gate"], review["action"], review["feedback"]) == (
-        "fit_review",
-        "approve",
-        "Proceed",
+    # Drafting ran; now paused for the content review with everything to look at.
+    assert final["status"] == "awaiting_approval"
+    assert final["pending_review"]["gate"] == "content_review"
+    assert final["pending_review"]["allowed_actions"] == ["approve", "edit", "regenerate", "reject"]
+    assert len(final["tailored"]["bullets"]) == 4
+    assert final["cover_letter"]["salutation"] == "Dear Northwind Labs Hiring Team,"
+    assert final["company_brief"]["facts"][0]["id"] == "co-1"
+
+    _, done = await resume_and_wait(client, runner, app_id, {"action": "approve"})
+
+    assert done["status"] == "completed"
+    assert done["pending_review"] is None
+    assert done["next_steps"] == []
+    assert [(r["gate"], r["action"], r["feedback"]) for r in done["reviews"]] == [
+        ("fit_review", "approve", "Proceed"),
+        ("content_review", "approve", None),
+    ]
+
+
+async def test_resume_content_edit(client: AsyncClient, runner: PipelineRunner) -> None:
+    app_id = await paused_application(client, runner)
+    await resume_and_wait(client, runner, app_id, {"action": "approve"})
+
+    _, done = await resume_and_wait(
+        client,
+        runner,
+        app_id,
+        {"action": "edit", "text_edits": [{"id": "p-1", "text": "My own opening line."}]},
     )
+
+    assert done["status"] == "completed"
+    p1 = done["cover_letter"]["paragraphs"][0]
+    assert (p1["text"], p1["author"]) == ("My own opening line.", "human")
+
+
+async def test_resume_content_edit_unknown_id_returns_422(
+    client: AsyncClient, runner: PipelineRunner
+) -> None:
+    app_id = await paused_application(client, runner)
+    await resume_and_wait(client, runner, app_id, {"action": "approve"})
+
+    resp = await client.post(
+        f"/applications/{app_id}/resume",
+        json={"action": "edit", "text_edits": [{"id": "p-42", "text": "x"}]},
+    )
+
+    assert resp.status_code == 422
+    assert "p-42" in resp.json()["detail"]
+
+
+async def test_resume_regenerate(
+    client: AsyncClient, runner: PipelineRunner, fake_llm: FakeLLMClient
+) -> None:
+    app_id = await paused_application(client, runner)
+    await resume_and_wait(client, runner, app_id, {"action": "approve"})
+
+    _, again = await resume_and_wait(
+        client, runner, app_id, {"action": "regenerate", "feedback": "More formal tone"}
+    )
+
+    assert again["status"] == "awaiting_approval"
+    assert again["pending_review"]["gate"] == "content_review"
+    assert "More formal tone" in fake_llm.calls_for(CoverLetterDraft)[-1].user
+
+
+async def test_regenerate_not_allowed_at_fit_review(
+    client: AsyncClient, runner: PipelineRunner
+) -> None:
+    app_id = await paused_application(client, runner)
+    resp = await client.post(f"/applications/{app_id}/resume", json={"action": "regenerate"})
+    assert resp.status_code == 422
+    assert "not allowed at fit_review" in resp.json()["detail"]
 
 
 async def test_resume_edit(client: AsyncClient, runner: PipelineRunner) -> None:
@@ -158,7 +222,7 @@ async def test_resume_edit(client: AsyncClient, runner: PipelineRunner) -> None:
 
     _, final = await resume_and_wait(client, runner, app_id, decision)
 
-    assert final["status"] == "completed"
+    assert final["status"] == "awaiting_approval"  # now at the content gate
     k8s = final["fit_report"]["matches"][2]
     assert (k8s["verdict"], k8s["source"], k8s["evidence_refs"]) == ("met", "human", ["skill-5"])
     assert final["fit_report"]["overall_score"] == 100
@@ -230,6 +294,7 @@ async def test_resume_malformed_decision_returns_422(
 async def test_resume_twice_returns_409(client: AsyncClient, runner: PipelineRunner) -> None:
     app_id = await paused_application(client, runner)
     await resume_and_wait(client, runner, app_id, {"action": "approve"})
+    await resume_and_wait(client, runner, app_id, {"action": "approve"})  # completed
 
     resp = await client.post(f"/applications/{app_id}/resume", json={"action": "approve"})
 

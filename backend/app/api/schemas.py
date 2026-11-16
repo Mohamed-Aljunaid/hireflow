@@ -3,9 +3,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.agents.schemas.content import CoverLetter, TailoredBullets
 from app.agents.schemas.cv import ParsedCV
 from app.agents.schemas.fit import FitReport
 from app.agents.schemas.job import JobPosting
+from app.agents.schemas.research import CompanyBrief
 from app.agents.schemas.review import PendingReview, ReviewRecord
 
 
@@ -51,6 +53,9 @@ class ApplicationRead(BaseModel):
     reviews: list[ReviewRecord] = Field(default_factory=list)
     job: JobPosting | None = None
     fit_report: FitReport | None = None
+    company_brief: CompanyBrief | None = None
+    tailored: TailoredBullets | None = None
+    cover_letter: CoverLetter | None = None
 
 
 class FitRequest(BaseModel):

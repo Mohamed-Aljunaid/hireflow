@@ -16,9 +16,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command, StateSnapshot
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agents.review import apply_fit_overrides, check_action_allowed
-from app.agents.schemas.cv import ParsedCV
-from app.agents.schemas.fit import FitReport
+from app.agents.review import validate_decision
 from app.agents.schemas.review import PendingReview, ReviewDecision
 from app.agents.state import PipelineState
 from app.core.llm import LLMError
@@ -103,13 +101,7 @@ class PipelineRunner:
         review = pending_review(snapshot)
         if review is None:
             raise NotAwaitingApprovalError(f"application {app_id} is not awaiting approval")
-        check_action_allowed(review.gate, decision)
-        if decision.action == "edit":
-            apply_fit_overrides(  # dry run: raises on invalid overrides
-                FitReport.model_validate(snapshot.values["fit_report"]),
-                ParsedCV.model_validate(snapshot.values["cv"]),
-                decision.match_overrides,
-            )
+        validate_decision(review.gate, decision, snapshot.values)
 
         # Atomic status flip: of two concurrent resumes, exactly one wins.
         async with self._sessions() as session:

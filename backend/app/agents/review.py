@@ -1,10 +1,13 @@
 """Applying human review decisions. Pure functions, shared by the API (to validate
 before resuming, returning 422 on bad input) and by the graph node (to apply)."""
 
+from typing import Any
+
 from app.agents.fit_analyst import score_matches
+from app.agents.schemas.content import CoverLetter, TailoredBullets
 from app.agents.schemas.cv import ParsedCV
 from app.agents.schemas.fit import FitReport, RequirementMatch
-from app.agents.schemas.review import GATE_ACTIONS, MatchOverride, ReviewDecision
+from app.agents.schemas.review import GATE_ACTIONS, MatchOverride, ReviewDecision, TextEdit
 
 
 class ReviewValidationError(ValueError):
@@ -17,6 +20,54 @@ def check_action_allowed(gate: str, decision: ReviewDecision) -> None:
         raise ReviewValidationError(
             f"action '{decision.action}' is not allowed at {gate} (allowed: {list(allowed)})"
         )
+
+
+def validate_decision(gate: str, decision: ReviewDecision, state: dict[str, Any]) -> None:
+    """Dry-run a decision against the paused run's state; raise ReviewValidationError."""
+    check_action_allowed(gate, decision)
+    if gate == "fit_review":
+        if decision.text_edits:
+            raise ReviewValidationError("fit_review edits are match_overrides, not text_edits")
+        if decision.action == "edit":
+            apply_fit_overrides(
+                FitReport.model_validate(state["fit_report"]),
+                ParsedCV.model_validate(state["cv"]),
+                decision.match_overrides,
+            )
+    elif gate == "content_review":
+        if decision.match_overrides:
+            raise ReviewValidationError("content_review edits are text_edits, not match_overrides")
+        if decision.action == "edit":
+            apply_text_edits(
+                TailoredBullets.model_validate(state["tailored"]),
+                CoverLetter.model_validate(state["cover_letter"]),
+                decision.text_edits,
+            )
+
+
+def apply_text_edits(
+    tailored: TailoredBullets, letter: CoverLetter, edits: list[TextEdit]
+) -> tuple[TailoredBullets, CoverLetter]:
+    """Replace bullet/paragraph text with the reviewer's words; citations are kept.
+
+    Human text is not re-checked: it is the candidate's own statement about themselves.
+    The item is marked author="human" so the UI and evals can tell.
+    """
+    bullet_ids = {b.id for b in tailored.bullets}
+    para_ids = {p.id for p in letter.paragraphs}
+    if unknown := [e.id for e in edits if e.id not in bullet_ids | para_ids]:
+        raise ReviewValidationError(f"unknown bullet/paragraph ids {unknown}")
+    new_text = {e.id: e.text.strip() for e in edits}
+
+    def edit(item):  # works for TailoredBullet and CoverLetterParagraph
+        if item.id not in new_text:
+            return item
+        return item.model_copy(update={"text": new_text[item.id], "author": "human"})
+
+    return (
+        tailored.model_copy(update={"bullets": [edit(b) for b in tailored.bullets]}),
+        letter.model_copy(update={"paragraphs": [edit(p) for p in letter.paragraphs]}),
+    )
 
 
 def apply_fit_overrides(

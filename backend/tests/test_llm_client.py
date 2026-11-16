@@ -15,7 +15,15 @@ from app.core.llm import (
     LLMTruncatedError,
     LLMUnavailableError,
 )
-from tests.fakes import sample_extraction, sample_fit_assessment, sample_job_extraction
+from tests.fakes import (
+    all_supported,
+    sample_company_research,
+    sample_cover_letter_draft,
+    sample_extraction,
+    sample_fit_assessment,
+    sample_job_extraction,
+    sample_tailoring_draft,
+)
 
 
 class FakeBetaMessages:
@@ -136,7 +144,15 @@ async def test_real_sdk_request_and_parse_via_mock_transport() -> None:
 
 @pytest.mark.parametrize(
     "instance",
-    [sample_extraction(), sample_job_extraction(), sample_fit_assessment()],
+    [
+        sample_extraction(),
+        sample_job_extraction(),
+        sample_fit_assessment(),
+        sample_company_research(),
+        sample_tailoring_draft(),
+        sample_cover_letter_draft(),
+        all_supported("[tb-1] x\n[p-1] y"),
+    ],
     ids=lambda m: type(m).__name__,
 )
 async def test_every_agent_output_model_round_trips_through_real_sdk(instance: Any) -> None:
