@@ -207,3 +207,24 @@ Each entry: date, decision, context, alternatives, consequences.
   - **frontend:** a check that the generated `schema.ts` is up to date, then lint, typecheck, Vitest and build;
   - **images:** both Docker builds.
 - **Consequences:** The two drift checks keep the backend, the spec and the TS types in step.
+
+---
+
+## 2026-11-24 — Phase 9: job search through the Himalayas API
+- **Decision:** `GET /jobs/search` calls Himalayas' public search (`q` + `country`, default `SA`). Plain code, no LLM and no MCP: a keyword search doesn't need a model, and this way it's free and testable. Picking a result fills the posting box, so the pipeline is unchanged.
+- **Context:** The pipeline needs the full posting text. Checked live: full descriptions, a working Saudi Arabia filter, no key.
+- **Alternatives:** Jooble, Careerjet and Adzuna return snippets. Jobicy has no Saudi location and Remotive no country filter. SerpApi and TheirStack cost money beyond a small free tier. Scraping LinkedIn breaks its terms.
+- **Consequences:**
+  - Country-only jobs come first **within each page of 20**; the provider controls paging.
+  - Its multi-country tags are often wrong, so the UI says "check eligibility".
+  - Few local employers: a second provider would be needed for on-site Saudi jobs.
+  - Results are cached for 10 minutes in the process (bounded), which also limits calls from a public demo.
+  - Search is live even with `LLM_MOCK=true`, but the mocked pipeline still returns its sample job.
+
+## 2026-11-24 — External links are validated; `applications.apply_url`
+- **Decision:** `apply_url` (migration 0004, nullable) keeps the application link for the export step. It and the listing links must start with `http://` or `https://`, so a `javascript:` URL can never be rendered as a link. They stay plain strings because Himalayas requires the apply link unchanged. The job-board client has a fixed host and doesn't follow redirects. `httpx` moved from a dev to a runtime dependency.
+- **Consequences:** Emptying the posting box drops the picked job, so an apply link isn't attached to a different posting.
+
+## 2026-11-24 — Disabled buttons say why
+- **Decision:** Each button that can be disabled by missing input shows the reason beside it, and the file picker is styled as a button.
+- **Context:** A user hit a disabled button and couldn't tell what was missing.

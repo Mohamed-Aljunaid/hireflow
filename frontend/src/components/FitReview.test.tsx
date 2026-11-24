@@ -39,6 +39,7 @@ describe('FitReview', () => {
     await user.selectOptions(screen.getByLabelText('Verdict'), 'partial')
     const save = screen.getByRole('button', { name: 'Save overrides and continue' })
     expect(save).toBeDisabled() // partial needs evidence and a note
+    expect(screen.getByText(/Each override needs a reason/)).toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText(/Evidence from your CV/), 'skill-5')
     expect(save).toBeDisabled()

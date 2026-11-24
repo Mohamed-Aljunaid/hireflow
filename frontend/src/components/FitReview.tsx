@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FitReport, MatchOverride, ReviewDecision, Verdict } from '../api/client'
-import { btnDanger, btnPrimary, btnSecondary, card, input, verdictStyle } from './ui'
+import { btnDanger, btnPrimary, btnSecondary, card, hint, input, verdictStyle } from './ui'
 
 type Props = {
   report: FitReport
@@ -192,6 +192,11 @@ export function FitReview({ report, evidence, busy, onDecide }: Props) {
           </button>
         )}
       </div>
+      {editing && !complete && (
+        <p className={hint}>
+          Each override needs a reason, and met/partial needs at least one CV item selected.
+        </p>
+      )}
     </section>
   )
 }

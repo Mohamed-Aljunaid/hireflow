@@ -28,10 +28,16 @@ def test_upgrade_and_downgrade_sqlite(tmp_path: Path) -> None:
     assert job_cols == {"id", "raw_text", "parsed", "created_at"}
     app_cols = {c["name"] for c in sa.inspect(engine).get_columns("applications")}
     assert app_cols == {
-        "id", "cv_id", "job_text", "status", "error", "created_at", "updated_at"
+        "id", "cv_id", "job_text", "apply_url", "status", "error", "created_at", "updated_at"
     }  # fmt: skip
     [fk] = sa.inspect(engine).get_foreign_keys("applications")
     assert fk["referred_table"] == "cvs" and fk["constrained_columns"] == ["cv_id"]
+    engine.dispose()
+
+    command.downgrade(cfg, "0003")
+    engine = sa.create_engine(f"sqlite:///{db.as_posix()}")
+    cols = {c["name"] for c in sa.inspect(engine).get_columns("applications")}
+    assert "apply_url" not in cols and "job_text" in cols
     engine.dispose()
 
     command.downgrade(cfg, "0001")

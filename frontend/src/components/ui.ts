@@ -6,6 +6,8 @@ export const btn =
 export const btnPrimary = `${btn} bg-indigo-600 text-white hover:bg-indigo-700`
 export const btnSecondary = `${btn} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50`
 export const btnDanger = `${btn} border border-red-300 bg-white text-red-700 hover:bg-red-50`
+// Says why a button is disabled.
+export const hint = 'mt-2 text-sm text-amber-700'
 export const input =
   'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 ' +
   'focus:outline-none focus:ring-2 focus:ring-indigo-200'

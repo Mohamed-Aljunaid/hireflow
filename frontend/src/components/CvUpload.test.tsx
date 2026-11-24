@@ -16,7 +16,9 @@ describe('CvUpload', () => {
 
     const button = screen.getByRole('button', { name: 'Upload and parse' })
     expect(button).toBeDisabled()
+    expect(screen.getByText('Choose a file first.')).toBeInTheDocument()
     await user.upload(screen.getByLabelText('CV file'), file)
+    expect(screen.queryByText('Choose a file first.')).not.toBeInTheDocument()
     await user.click(button)
 
     expect(upload).toHaveBeenCalledWith(file)

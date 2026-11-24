@@ -89,3 +89,18 @@ Work one phase at a time. Stop when a phase's **Done when** is met. Every phase 
 - README with architecture diagram, demo GIF and how to run locally.
 
 **Done when:** the app is reachable at a public URL; CI is green on main; the README is complete.
+
+---
+
+## Phase 9 — Job search
+**Goal:** find remote jobs open to a chosen country (default Saudi Arabia) and send one into the existing pipeline. No scraping, no auto-applying.
+- Provider: Himalayas public API (`GET https://himalayas.app/jobs/api/search`, `q` + `country`). Free, no key, full descriptions.
+- `app/services/job_search.py`: fetch, strip HTML, validate into a `JobListing` model (title, company, posting text, location scope, apply link, Himalayas link, published, expires). Fixed host, timeout, short cache; expired jobs dropped.
+- `GET /jobs/search?q=&country=&page=`. Provider errors → 502, provider rate limit → 503.
+- Order: country-only jobs first, then worldwide, then multi-country (those location tags are often wrong, so the UI says "check eligibility").
+- `applications.apply_url` (nullable, migration 0004), so the apply link is still there at the export step.
+- Frontend: a search panel on the job step. Picking a job fills the posting box for review; the pipeline itself is unchanged. Pasting still works.
+- Himalayas terms: apply link used unchanged, visible link back on every listing, listings not passed to other boards.
+- Not included: scoring every result with the LLM (costs per job), saved searches, alerts, a second provider.
+
+**Done when:** searching returns normalized listings and picking one runs the existing pipeline; parsing, ordering, expiry, error mapping, the migration and the UI are tested with the provider's HTTP mocked; one live search is checked by hand; ruff, lint and typecheck are clean.

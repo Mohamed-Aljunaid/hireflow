@@ -11,9 +11,9 @@ ApplicationStatus = Literal["running", "awaiting_approval", "completed", "reject
 
 
 async def create_application(
-    session: AsyncSession, *, cv_id: uuid.UUID, job_text: str
+    session: AsyncSession, *, cv_id: uuid.UUID, job_text: str, apply_url: str | None = None
 ) -> Application:
-    application = Application(cv_id=cv_id, job_text=job_text, status="running")
+    application = Application(cv_id=cv_id, job_text=job_text, apply_url=apply_url, status="running")
     session.add(application)
     await session.commit()
     await session.refresh(application)

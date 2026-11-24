@@ -25,6 +25,7 @@ async def _read(application: Application, runner: PipelineRunner) -> Application
         cv_id=application.cv_id,
         status=application.status,
         error=application.error,
+        apply_url=application.apply_url,
         created_at=application.created_at,
         updated_at=application.updated_at,
         next_steps=list(snapshot.next),
@@ -60,7 +61,9 @@ async def create_application(
     if await cv_repository.get_cv(session, body.cv_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "CV not found")
 
-    application = await apps.create_application(session, cv_id=body.cv_id, job_text=job_text)
+    application = await apps.create_application(
+        session, cv_id=body.cv_id, job_text=job_text, apply_url=body.apply_url
+    )
     await runner.start(application.id)
     return await _read(application, runner)
 

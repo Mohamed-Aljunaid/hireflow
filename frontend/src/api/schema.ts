@@ -72,6 +72,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/jobs/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search
+         * @description Remote jobs open to a country, from Himalayas.
+         */
+        get: operations["search_jobs_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -179,6 +199,8 @@ export interface components {
              * Format: uuid
              */
             cv_id: string;
+            /** Apply Url */
+            apply_url?: string | null;
             /**
              * Job Text
              * @description The job posting, pasted as plain text.
@@ -201,6 +223,8 @@ export interface components {
             status: string;
             /** Error */
             error: string | null;
+            /** Apply Url */
+            apply_url?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -439,6 +463,31 @@ export interface components {
              */
             text: string;
         };
+        /** JobListing */
+        JobListing: {
+            /** Title */
+            title: string;
+            /** Company */
+            company: string;
+            /**
+             * Posting Text
+             * @description Plain text, ready for the pipeline.
+             */
+            posting_text: string;
+            /**
+             * Location Scope
+             * @enum {string}
+             */
+            location_scope: "country_only" | "worldwide" | "multi_country";
+            /** Apply Url */
+            apply_url: string;
+            /** Source Url */
+            source_url: string;
+            /** Published At */
+            published_at: string | null;
+            /** Expires At */
+            expires_at: string | null;
+        };
         /** JobPosting */
         JobPosting: {
             /** Title */
@@ -485,6 +534,17 @@ export interface components {
              */
             created_at: string;
             parsed: components["schemas"]["JobPosting"];
+        };
+        /** JobSearchResult */
+        JobSearchResult: {
+            /** Listings */
+            listings: components["schemas"]["JobListing"][];
+            /** Total */
+            total: number;
+            /** Page */
+            page: number;
+            /** Has More */
+            has_more: boolean;
         };
         /**
          * MatchOverride
@@ -816,6 +876,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_jobs_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                /** @description ISO code. */
+                country?: string;
+                page?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobSearchResult"];
                 };
             };
             /** @description Validation Error */

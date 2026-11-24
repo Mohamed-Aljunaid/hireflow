@@ -63,6 +63,8 @@ describe('ContentReview', () => {
     const { user } = setup()
     await user.clear(screen.getByLabelText('Bullet tb-2'))
     expect(screen.getByRole('button', { name: /Save 1 edit/ })).toBeDisabled()
+    expect(screen.getByText(/A bullet or paragraph is empty/)).toBeInTheDocument()
+    expect(screen.getByText(/undo your edits first/)).toBeInTheDocument()
   })
 
   it('regenerates with feedback, and rejects', async () => {

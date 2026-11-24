@@ -20,6 +20,16 @@ describe('ExportPanel', () => {
     expect(screen.getByRole('button', { name: 'Copied' })).toBeInTheDocument()
   })
 
+  it('links to the application page only when the job came from a search', () => {
+    const { rerender } = render(<ExportPanel tailored={tailored} letter={letter} />)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    rerender(<ExportPanel tailored={tailored} letter={letter} applyUrl="https://x.example/apply" />)
+    expect(screen.getByRole('link', { name: 'Apply for this job' })).toHaveAttribute(
+      'href',
+      'https://x.example/apply',
+    )
+  })
+
   it('downloads a .txt file', async () => {
     const createObjectURL = vi.fn(() => 'blob:x')
     const revokeObjectURL = vi.fn()

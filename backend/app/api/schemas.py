@@ -9,6 +9,7 @@ from app.agents.schemas.fit import FitReport
 from app.agents.schemas.job import JobPosting
 from app.agents.schemas.research import CompanyBrief
 from app.agents.schemas.review import PendingReview, ReviewRecord
+from app.services.job_search import WebUrl
 
 
 class CVRead(BaseModel):
@@ -42,6 +43,7 @@ class JobRead(BaseModel):
 
 class ApplicationCreate(BaseModel):
     cv_id: uuid.UUID
+    apply_url: WebUrl | None = None
     job_text: str = Field(min_length=50, description="The job posting, pasted as plain text.")
 
 
@@ -50,6 +52,7 @@ class ApplicationRead(BaseModel):
     cv_id: uuid.UUID
     status: str
     error: str | None
+    apply_url: str | None = None
     created_at: datetime
     updated_at: datetime
     next_steps: list[str] = Field(description="Graph nodes still to run (empty when done).")

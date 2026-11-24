@@ -9,6 +9,8 @@ export type TextEdit = Schemas['TextEdit']
 export type FitReport = Schemas['FitReport']
 export type TailoredBullets = Schemas['TailoredBullets']
 export type CoverLetter = Schemas['CoverLetter']
+export type JobListing = Schemas['JobListing']
+export type JobSearchResult = Schemas['JobSearchResult']
 export type Verdict = Schemas['RequirementMatch']['verdict']
 
 export class ApiError extends Error {
@@ -50,8 +52,13 @@ export const api = {
     return request('/cvs', { method: 'POST', body: form })
   },
   getCv: (id: string): Promise<CV> => request(`/cvs/${id}`),
-  createApplication: (cvId: string, jobText: string): Promise<Application> =>
-    request('/applications', json('POST', { cv_id: cvId, job_text: jobText })),
+  searchJobs: (q: string, country: string, page: number): Promise<JobSearchResult> =>
+    request(`/jobs/search?${new URLSearchParams({ q, country, page: String(page) })}`),
+  createApplication: (cvId: string, jobText: string, applyUrl?: string): Promise<Application> =>
+    request(
+      '/applications',
+      json('POST', { cv_id: cvId, job_text: jobText, apply_url: applyUrl }),
+    ),
   getApplication: (id: string): Promise<Application> => request(`/applications/${id}`),
   resume: (id: string, decision: ReviewDecision): Promise<Application> =>
     request(`/applications/${id}/resume`, json('POST', decision)),

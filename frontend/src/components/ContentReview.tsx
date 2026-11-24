@@ -1,7 +1,7 @@
 import { diffWords } from 'diff'
 import { useState } from 'react'
 import type { CoverLetter, ReviewDecision, TailoredBullets, TextEdit } from '../api/client'
-import { btnDanger, btnPrimary, btnSecondary, card, input } from './ui'
+import { btnDanger, btnPrimary, btnSecondary, card, hint, input } from './ui'
 
 type Props = {
   tailored: TailoredBullets
@@ -137,7 +137,6 @@ export function ContentReview({ tailored, letter, evidence, busy, onDecide }: Pr
         <button
           className={btnSecondary}
           disabled={busy || edits.length > 0}
-          title={edits.length > 0 ? 'Discard your edits first' : undefined}
           onClick={() => onDecide({ action: 'regenerate', feedback: fb })}
         >
           Regenerate
@@ -150,6 +149,8 @@ export function ContentReview({ tailored, letter, evidence, busy, onDecide }: Pr
           Reject
         </button>
       </div>
+      {emptyEdit && <p className={hint}>A bullet or paragraph is empty. Add text to save.</p>}
+      {edits.length > 0 && <p className={hint}>To regenerate, undo your edits first.</p>}
     </section>
   )
 }

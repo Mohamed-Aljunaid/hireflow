@@ -1,5 +1,12 @@
 // Shaped like real API responses (the backend's mock-LLM sample data).
-import type { Application, CoverLetter, CV, FitReport, TailoredBullets } from '../api/client'
+import type {
+  Application,
+  CoverLetter,
+  CV,
+  FitReport,
+  JobListing,
+  TailoredBullets,
+} from '../api/client'
 
 export const evidence: Record<string, string> = {
   'exp-1': 'Senior Backend Engineer at Acme Analytics (Mar 2022 - Present)',
@@ -63,6 +70,17 @@ export const letter: CoverLetter = {
   ],
   closing: 'Best regards,\nJordan Rivera',
   warnings: [],
+}
+
+export const listing: JobListing = {
+  title: 'Senior AI Engineer',
+  company: 'Acme',
+  posting_text: 'Senior AI Engineer - Acme\nRemote (Saudi Arabia)\n\nWe build agents with LangGraph.',
+  location_scope: 'country_only',
+  apply_url: 'https://himalayas.app/jobs/ai?utm_source=api',
+  source_url: 'https://himalayas.app/jobs/ai',
+  published_at: '2026-11-20T10:00:00Z',
+  expires_at: null,
 }
 
 export function application(overrides: Partial<Application> = {}): Application {

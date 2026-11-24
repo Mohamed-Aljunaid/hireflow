@@ -3,7 +3,9 @@ import type { CoverLetter, TailoredBullets } from '../api/client'
 import { exportText } from '../lib/exportText'
 import { btnPrimary, btnSecondary, card } from './ui'
 
-export function ExportPanel({ tailored, letter }: { tailored: TailoredBullets; letter: CoverLetter }) {
+type Props = { tailored: TailoredBullets; letter: CoverLetter; applyUrl?: string | null }
+
+export function ExportPanel({ tailored, letter, applyUrl }: Props) {
   const text = exportText(tailored, letter)
   const [copied, setCopied] = useState(false)
 
@@ -34,6 +36,11 @@ export function ExportPanel({ tailored, letter }: { tailored: TailoredBullets; l
         <button className={btnSecondary} onClick={download}>
           Download .txt
         </button>
+        {applyUrl && (
+          <a className={btnSecondary} href={applyUrl} target="_blank" rel="noopener">
+            Apply for this job
+          </a>
+        )}
       </div>
     </section>
   )

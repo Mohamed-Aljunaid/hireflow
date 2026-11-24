@@ -1,6 +1,6 @@
 # HireFlow
 
-Upload your CV, paste a job posting, and a multi-agent pipeline parses the job, researches the company, scores your fit, tailors your CV bullets and writes a cover letter. It pauses for your approval at the key steps, and **every claim it writes is checked against your CV before you see it**.
+Upload your CV, find a remote job (or paste a posting), and a multi-agent pipeline parses the job, researches the company, scores your fit, tailors your CV bullets and writes a cover letter. It pauses for your approval at the key steps, and **every claim it writes is checked against your CV before you see it**.
 
 Built with FastAPI, LangGraph (Postgres checkpointer), the Anthropic API, PostgreSQL 16, React + TypeScript + Tailwind, and Docker.
 
@@ -33,6 +33,7 @@ flowchart LR
     N -->|/api/*| A[FastAPI API + pipeline runner]
     A --> DB[(PostgreSQL 16: CVs, jobs, applications, LangGraph checkpoints)]
     A --> C[Anthropic API]
+    A --> H[Himalayas job search API]
 ```
 
 ### Why you can trust the output
@@ -104,7 +105,7 @@ docs/              decisions.md (why things are the way they are), evals.md, ope
 
 ## Status
 
-All 8 phases in [PLAN.md](PLAN.md) are implemented. Still open:
+All 9 phases in [PLAN.md](PLAN.md) are implemented. Job search uses the free [Himalayas](https://himalayas.app/api) API; it doesn't apply to jobs for you. Still open:
 - an eval run against the real model (needs an API key: [docs/evals.md](docs/evals.md));
 - a real web-search provider for company research (currently the job posting only);
 - the live deployment and demo GIF.

@@ -95,7 +95,11 @@ export function ApplicationView({ appId, onStartOver }: { appId: string; onStart
           />
         )}
         {app.status === 'completed' && app.tailored && app.cover_letter && (
-          <ExportPanel tailored={app.tailored} letter={app.cover_letter} />
+          <ExportPanel
+            tailored={app.tailored}
+            letter={app.cover_letter}
+            applyUrl={app.apply_url}
+          />
         )}
       </div>
     </div>
